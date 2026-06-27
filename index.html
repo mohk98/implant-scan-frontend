@@ -4,9 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ImplantScan</title>
+<!-- js-aruco2 من CDN -->
+<script src="https://cdn.jsdelivr.net/npm/js-aruco2@1.0.4/src/aruco.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-aruco2@1.0.4/src/svd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-aruco2@1.0.4/src/posit1.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-:root {
+:root{
   --bg:#080c10;--surface:#0f1923;--border:#1a2a3a;
   --accent:#00d4ff;--green:#00e676;--red:#ff3d3d;--yellow:#ffcc00;
   --text:#e0f0f8;--muted:#3d5a6e;
@@ -16,10 +20,10 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s}
 .screen.active{opacity:1;pointer-events:all}
 
-/* START */
-#s-start{align-items:center;justify-content:center;padding:32px 24px;gap:20px}
-.brand{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:4px;color:var(--muted)}
-.hero{width:100px;height:100px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative}
+/* ── START ── */
+#s-start{align-items:center;justify-content:center;padding:32px 24px;gap:18px}
+.brand{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:4px;color:var(--muted)}
+.hero{width:90px;height:90px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative}
 .hero::before{content:'';position:absolute;inset:8px;border-radius:50%;border:1px solid var(--accent);opacity:.3}
 #s-start h1{font-size:22px;font-weight:600;text-align:center}
 #s-start p{font-size:13px;color:var(--muted);text-align:center;line-height:1.7;max-width:280px}
@@ -32,39 +36,40 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 .btn-main{width:100%;max-width:280px;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#000;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:15px;font-weight:600;cursor:pointer}
 .btn-main:active{opacity:.8}
 
-/* SCAN */
+/* ── SCAN ── */
 #s-scan{background:#000}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#overlay-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+#overlay-canvas{position:absolute;inset:0;width:100%;height:100%}
 .hud{position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none}
-.hud-top{padding:16px 20px 12px;background:linear-gradient(#000a,transparent);display:flex;align-items:center;justify-content:space-between;pointer-events:all}
-.hud-logo{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--accent);letter-spacing:2px}
+.hud-top{padding:14px 18px 10px;background:linear-gradient(#000b,transparent);display:flex;align-items:center;justify-content:space-between;pointer-events:all}
+.hud-logo{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);letter-spacing:2px}
 .btn-cancel{background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer}
-.hud-mid{flex:1;display:flex;align-items:center;justify-content:center;pointer-events:none}
-.tap-hint{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:12px 20px;font-size:14px;text-align:center;line-height:1.6;backdrop-filter:blur(8px);max-width:260px;pointer-events:none}
-.hud-bottom{padding:16px 20px 36px;background:linear-gradient(transparent,#000c);display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:all}
-.status-pill{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:8px 18px;font-size:14px;backdrop-filter:blur(8px)}
-.sdot{width:8px;height:8px;border-radius:50%;background:var(--yellow);animation:blink 1s infinite}
+.hud-bottom{padding:14px 18px 32px;background:linear-gradient(transparent,#000c);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:all}
+.status-pill{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:8px 18px;font-size:13px;backdrop-filter:blur(8px)}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--yellow);animation:blink 1s infinite;flex-shrink:0}
 .sdot.found{background:var(--green);animation:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.imp-indicators{display:flex;gap:10px}
-.imp-ind{display:flex;flex-direction:column;align-items:center;gap:4px}
-.imp-circle{width:38px;height:38px;border-radius:50%;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--muted);transition:all .3s;background:rgba(0,0,0,.5)}
+.imp-indicators{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.imp-ind{display:flex;flex-direction:column;align-items:center;gap:3px}
+.imp-circle{width:36px;height:36px;border-radius:50%;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);transition:all .3s;background:rgba(0,0,0,.5)}
 .imp-circle.found{border-color:var(--green);color:var(--green);background:rgba(0,230,118,.1);box-shadow:0 0 12px rgba(0,230,118,.3)}
-.imp-circle.locked{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.1)}
+.imp-circle.partial{border-color:var(--yellow);color:var(--yellow)}
 .imp-label{font-size:10px;color:var(--muted)}
 .analyze-btn{width:100%;max-width:280px;padding:14px;border:none;border-radius:14px;background:var(--green);color:#000;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:15px;font-weight:600;cursor:pointer;opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s;pointer-events:none}
 .analyze-btn.ready{opacity:1;transform:translateY(0);pointer-events:all}
-.reset-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 20px;border-radius:20px;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans Arabic',sans-serif}
 
-/* PROCESSING */
+/* distance gauge */
+.gauge-bar{width:100%;max-width:200px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+.gauge-fill{height:100%;border-radius:3px;transition:width .2s,background .2s;width:0%}
+
+/* ── PROCESSING ── */
 #s-processing{align-items:center;justify-content:center;gap:20px;padding:40px}
 .spin{width:70px;height:70px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #s-processing h2{font-size:20px}
 #s-processing p{color:var(--muted);font-size:13px;text-align:center}
 
-/* RESULTS */
+/* ── RESULTS ── */
 #s-results{flex-direction:column;overflow-y:auto;padding:24px 20px 40px}
 .res-header{text-align:center;margin-bottom:16px}
 .res-header h2{font-size:20px;margin-bottom:4px}
@@ -81,7 +86,6 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 .coord span:last-child{font-family:'IBM Plex Mono',monospace;font-size:12px}
 .exp-btns{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .exp-btn{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;width:100%;font-family:'IBM Plex Sans Arabic',sans-serif}
-.exp-btn:active{border-color:var(--accent)}
 .exp-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .btn-sec{width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'IBM Plex Sans Arabic',sans-serif;font-size:13px;cursor:pointer}
 </style>
@@ -92,17 +96,17 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 <div class="screen active" id="s-start">
   <div class="brand">IMPLANTSCAN</div>
   <div class="hero">
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#00d4ff" stroke-width="1.5">
-      <circle cx="20" cy="20" r="7"/>
-      <line x1="20" y1="4" x2="20" y2="11"/>
-      <line x1="20" y1="29" x2="20" y2="36"/>
-      <line x1="4" y1="20" x2="11" y2="20"/>
-      <line x1="29" y1="20" x2="36" y2="20"/>
-      <circle cx="20" cy="20" r="2.5" fill="#00d4ff" stroke="none"/>
+    <svg width="38" height="38" viewBox="0 0 38 38" fill="none" stroke="#00d4ff" stroke-width="1.5">
+      <circle cx="19" cy="19" r="6"/>
+      <line x1="19" y1="3" x2="19" y2="10"/>
+      <line x1="19" y1="28" x2="19" y2="35"/>
+      <line x1="3" y1="19" x2="10" y2="19"/>
+      <line x1="28" y1="19" x2="35" y2="19"/>
+      <circle cx="19" cy="19" r="2" fill="#00d4ff" stroke="none"/>
     </svg>
   </div>
   <h1>تحديد مواضع الزراعات</h1>
-  <p>اضغط على كل scan body بالشاشة لتحديد موضعه</p>
+  <p>وجّه الكاميرا نحو الـ scan bodies<br>النظام يتعرف عليهم تلقائياً</p>
   <div class="count-row">
     <span class="count-label">عدد الزراعات</span>
     <div class="count-controls">
@@ -118,28 +122,24 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 <div class="screen" id="s-scan">
   <video id="video" autoplay playsinline muted></video>
   <canvas id="overlay-canvas"></canvas>
-
   <div class="hud">
     <div class="hud-top">
       <div class="hud-logo">IMPLANTSCAN</div>
       <button class="btn-cancel" onclick="stopScan()">إيقاف</button>
     </div>
-
-    <div class="hud-mid">
-      <div class="tap-hint" id="tap-hint">
-        اضغط على كل scan body<br>بالشاشة لتحديد موضعه<br>
-        <span style="color:var(--accent);font-size:12px">متبقي: <span id="remaining-count">2</span> زراعة</span>
-      </div>
-    </div>
-
+    <div style="flex:1"></div>
     <div class="hud-bottom">
       <div class="status-pill">
         <div class="sdot" id="sdot"></div>
-        <span id="status-text">اضغط على الزراعات</span>
+        <span id="status-text">جاري البحث عن الماركرات...</span>
+      </div>
+      <div class="gauge-bar">
+        <div class="gauge-fill" id="gauge-fill"></div>
       </div>
       <div class="imp-indicators" id="imp-indicators"></div>
-      <button class="reset-btn" onclick="resetMarkers()">↺ إعادة التحديد</button>
-      <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">تحليل المواضع ←</button>
+      <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">
+        تحليل المواضع ←
+      </button>
     </div>
   </div>
 </div>
@@ -148,7 +148,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 <div class="screen" id="s-processing">
   <div class="spin"></div>
   <h2>جاري الحساب</h2>
-  <p>يتم حساب إحداثيات الزراعات<br>من النقاط المحددة</p>
+  <p>يتم حساب إحداثيات الزراعات</p>
 </div>
 
 <!-- RESULTS -->
@@ -174,99 +174,83 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 
 <script>
 // ══ State ══
-let implantCount  = 2;
-let stream        = null;
-let rafId         = null;
-let markers       = {};      // {id: {x,y,locked,frames,trail}}
-let capturedFrames = [];
-let tapMode       = true;    // وضع الضغط اليدوي
+let implantCount   = 2;
+let stream         = null;
+let rafId          = null;
+let detector       = null;
+let detectedMarkers = {};   // {markerId: {corners, center, frames, pose}}
+let capturedFrames  = [];
+let scanComplete    = false;
 
-const API          = "https://implant-scan-production.up.railway.app";
-const TRACK_FRAMES = 10;     // إطارات للتأكيد بعد الضغط
+const API            = "https://implant-scan-production.up.railway.app";
+const CONFIRM_FRAMES = 15;   // إطارات للتأكيد
+const MARKER_SIZE    = 7.2;  // حجم الماركر بالـ mm (للـ pose estimation)
 
 // ══ Nav ══
 function goTo(id) {
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
 function changeCount(d) {
-  implantCount = Math.max(1, Math.min(10, implantCount+d));
+  implantCount = Math.max(1, Math.min(10, implantCount + d));
   document.getElementById('cnt-val').textContent = implantCount;
+}
+
+// ══ ArUco Detector Init ══
+function initDetector() {
+  try {
+    // نستخدم ARUCO dictionary (4x4)
+    detector = new AR.Detector({ dictionaryName: 'ARUCO' });
+    console.log('✅ ArUco detector initialized');
+  } catch(e) {
+    console.error('ArUco init error:', e);
+    // fallback
+    detector = null;
+  }
 }
 
 // ══ Start ══
 async function startScan() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 }
+      }
     });
+
     const video = document.getElementById('video');
     video.srcObject = stream;
     await video.play();
 
-    markers = {};
-    capturedFrames = [];
+    detectedMarkers = {};
+    capturedFrames  = [];
+    scanComplete    = false;
+
     buildIndicators();
-    updateRemaining();
+    initDetector();
+
     goTo('s-scan');
-
-    // ربط الـ canvas بالضغط
-    const canvas = document.getElementById('overlay-canvas');
-    canvas.addEventListener('click', onCanvasTap);
-    canvas.addEventListener('touchend', onCanvasTap);
-
     requestAnimationFrame(trackLoop);
+
   } catch(e) {
-    alert('تعذر فتح الكاميرا');
+    alert('تعذر فتح الكاميرا — تأكد من منح الإذن');
   }
 }
 
-// ══ Tap Handler ══
-function onCanvasTap(e) {
-  e.preventDefault();
-  const canvas = document.getElementById('overlay-canvas');
-  const rect   = canvas.getBoundingClientRect();
-
-  let cx, cy;
-  if (e.touches && e.touches.length > 0) {
-    cx = e.touches[0].clientX - rect.left;
-    cy = e.touches[0].clientY - rect.top;
-  } else if (e.changedTouches && e.changedTouches.length > 0) {
-    cx = e.changedTouches[0].clientX - rect.left;
-    cy = e.changedTouches[0].clientY - rect.top;
-  } else {
-    cx = e.clientX - rect.left;
-    cy = e.clientY - rect.top;
+// ══ Build Indicators ══
+function buildIndicators() {
+  const cont = document.getElementById('imp-indicators');
+  cont.innerHTML = '';
+  for (let i = 0; i < implantCount; i++) {
+    cont.innerHTML += `
+      <div class="imp-ind">
+        <div class="imp-circle" id="imp-c-${i}">Z${i+1}</div>
+        <div class="imp-label">زراعة ${i+1}</div>
+      </div>`;
   }
-
-  // نحسب الإحداثيات بالنسبة للـ video
-  const scaleX = canvas.width  / rect.width;
-  const scaleY = canvas.height / rect.height;
-  const vx = cx * scaleX;
-  const vy = cy * scaleY;
-
-  // نضيف الماركر للمكان اللي ضغط عليه
-  const nextId = Object.keys(markers).length;
-  if (nextId >= implantCount) {
-    // كل الماركرات محددة — اسأل هل يريد إعادة التحديد
-    resetMarkers();
-    return;
-  }
-
-  markers[nextId] = {
-    x: vx,
-    y: vy,
-    locked: false,
-    frames: 0,
-    trail: []
-  };
-
-  // اهتزاز خفيف
-  if (navigator.vibrate) navigator.vibrate(50);
-
-  updateIndicators();
-  updateRemaining();
 }
 
 // ══ Track Loop ══
@@ -284,325 +268,325 @@ function trackLoop() {
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
 
-  // تتبع الماركرات المحددة
-  trackMarkers(ctx, canvas.width, canvas.height);
+  // ArUco Detection
+  if (detector) {
+    try {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const markers   = detector.detect(canvas.width, canvas.height, imageData.data);
+
+      // تحديث الماركرات المكتشفة
+      const seenIds = new Set();
+
+      markers.forEach(marker => {
+        const id = marker.id;
+        seenIds.add(id);
+
+        if (!detectedMarkers[id]) {
+          detectedMarkers[id] = {
+            corners: marker.corners,
+            center:  getCenter(marker.corners),
+            frames:  0,
+            pose:    null
+          };
+        }
+
+        detectedMarkers[id].corners = marker.corners;
+        detectedMarkers[id].center  = getCenter(marker.corners);
+        detectedMarkers[id].frames  = Math.min(
+          CONFIRM_FRAMES + 5,
+          detectedMarkers[id].frames + 1
+        );
+
+        // Pose estimation
+        if (typeof POS !== 'undefined') {
+          try {
+            const posit = new POS.Posit(MARKER_SIZE, canvas.width);
+            const pose  = posit.pose(marker.corners);
+            detectedMarkers[id].pose = pose;
+          } catch(e) {}
+        }
+      });
+
+      // تقليل frames للماركرات غير المرئية
+      Object.keys(detectedMarkers).forEach(id => {
+        if (!seenIds.has(parseInt(id))) {
+          detectedMarkers[id].frames = Math.max(0, detectedMarkers[id].frames - 2);
+          if (detectedMarkers[id].frames === 0) {
+            delete detectedMarkers[id];
+          }
+        }
+      });
+
+    } catch(e) {
+      // ما في markers
+    }
+  }
 
   // رسم الـ overlay
-  drawOverlay(ctx);
+  drawOverlay(ctx, canvas.width, canvas.height);
 
-  // جمع الإطار
+  // تحديث UI
+  updateUI(canvas.width, canvas.height);
+
+  // جمع إطارات
   if (capturedFrames.length < 30) {
     capturedFrames.push(canvas.toDataURL('image/jpeg', 0.7));
   }
 
-  checkAllLocked();
-
   rafId = requestAnimationFrame(trackLoop);
 }
 
-// ══ Optical Flow Tracking ══
-function trackMarkers(ctx, w, h) {
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const data      = imageData.data;
-
-  Object.keys(markers).forEach(id => {
-    const m = markers[id];
-
-    // نبحث عن أعلى contrast في منطقة حول موضع الماركر
-    const searchR = 30;  // radius البحث
-    const x0 = Math.max(searchR, Math.min(w-searchR, m.x));
-    const y0 = Math.max(searchR, Math.min(h-searchR, m.y));
-
-    let bestX = x0, bestY = y0, bestScore = -1;
-    const step = 4;
-
-    for (let dy = -searchR; dy <= searchR; dy += step) {
-      for (let dx = -searchR; dx <= searchR; dx += step) {
-        const px = Math.floor(x0 + dx);
-        const py = Math.floor(y0 + dy);
-        if (px < 1 || px >= w-1 || py < 1 || py >= h-1) continue;
-
-        // حساب local contrast
-        let score = 0;
-        for (let sy = -2; sy <= 2; sy++) {
-          for (let sx = -2; sx <= 2; sx++) {
-            const idx  = ((py+sy) * w + (px+sx)) * 4;
-            const idxR = ((py+sy) * w + (px+sx+1)) * 4;
-            const idxD = ((py+sy+1) * w + (px+sx)) * 4;
-            const g  = (data[idx]   + data[idx+1]   + data[idx+2])   / 3;
-            const gR = (data[idxR]  + data[idxR+1]  + data[idxR+2])  / 3;
-            const gD = (data[idxD]  + data[idxD+1]  + data[idxD+2])  / 3;
-            score += Math.abs(g-gR) + Math.abs(g-gD);
-          }
-        }
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestX = px;
-          bestY = py;
-        }
-      }
-    }
-
-    // smooth الحركة
-    m.x = m.x * 0.7 + bestX * 0.3;
-    m.y = m.y * 0.7 + bestY * 0.3;
-
-    // trail
-    m.trail.push({x: m.x, y: m.y});
-    if (m.trail.length > 8) m.trail.shift();
-
-    m.frames++;
-
-    // lock بعد TRACK_FRAMES إطار
-    if (m.frames >= TRACK_FRAMES && !m.locked) {
-      m.locked = true;
-      if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
-      updateIndicators();
-    }
-  });
+// ══ Center ══
+function getCenter(corners) {
+  const x = corners.reduce((s, c) => s + c.x, 0) / 4;
+  const y = corners.reduce((s, c) => s + c.y, 0) / 4;
+  return {x, y};
 }
 
 // ══ Draw Overlay ══
-function drawOverlay(ctx) {
-  Object.keys(markers).forEach((id, idx) => {
-    const m = markers[id];
-    const confirmed = m.locked;
-    const progress  = Math.min(1, m.frames / TRACK_FRAMES);
+function drawOverlay(ctx, w, h) {
+  Object.values(detectedMarkers).forEach(m => {
+    const confirmed = m.frames >= CONFIRM_FRAMES;
+    const progress  = Math.min(1, m.frames / CONFIRM_FRAMES);
     const color     = confirmed ? '#00e676' : '#ffcc00';
+    const alpha     = 0.5 + progress * 0.5;
 
-    // trail
-    if (m.trail.length > 1) {
-      ctx.strokeStyle = confirmed ? 'rgba(0,230,118,0.2)' : 'rgba(255,204,0,0.2)';
-      ctx.lineWidth   = 1.5;
+    const corners = m.corners;
+
+    // رسم المربع حول الماركر
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = confirmed ? 3 : 2;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].x, corners[i].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // زوايا مميزة
+    const cs = 12;
+    ctx.lineWidth = confirmed ? 3 : 2;
+    corners.forEach((c, i) => {
+      const next = corners[(i+1)%4];
+      const dx   = (next.x - c.x) / 5;
+      const dy   = (next.y - c.y) / 5;
       ctx.beginPath();
-      m.trail.forEach((pt, i) => {
-        if (i === 0) ctx.moveTo(pt.x, pt.y);
-        else ctx.lineTo(pt.x, pt.y);
-      });
+      ctx.moveTo(c.x + dx, c.y + dy);
+      ctx.lineTo(c.x, c.y);
+      ctx.lineTo(c.x - dy * 0.5, c.y + dx * 0.5);
       ctx.stroke();
-    }
+    });
 
-    // دائرة التأكيد
+    ctx.globalAlpha = 1;
+
+    // progress arc
     if (!confirmed) {
       ctx.strokeStyle = '#ffcc00';
       ctx.lineWidth   = 3;
+      ctx.globalAlpha = 0.8;
       ctx.beginPath();
-      ctx.arc(m.x, m.y, 22, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
+      ctx.arc(m.center.x, m.center.y, 18,
+        -Math.PI/2,
+        -Math.PI/2 + progress * Math.PI * 2);
       ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      // checkmark عند الاكتمال
+      ctx.fillStyle   = '#00e676';
+      ctx.font        = 'bold 16px monospace';
+      ctx.textAlign   = 'center';
+      ctx.fillText('✓', m.center.x, m.center.y - 22);
     }
 
-    // نقطة المركز
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(m.x, m.y, confirmed ? 6 : 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // إطار الزاوية
-    const size = 28;
-    const cs   = 10;
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = confirmed ? 2.5 : 1.5;
-    ctx.beginPath();
-    const x = m.x - size/2, y = m.y - size/2;
-    ctx.moveTo(x+cs,y); ctx.lineTo(x,y); ctx.lineTo(x,y+cs);
-    ctx.moveTo(x+size-cs,y); ctx.lineTo(x+size,y); ctx.lineTo(x+size,y+cs);
-    ctx.moveTo(x,y+size-cs); ctx.lineTo(x,y+size); ctx.lineTo(x+cs,y+size);
-    ctx.moveTo(x+size-cs,y+size); ctx.lineTo(x+size,y+size); ctx.lineTo(x+size,y+size-cs);
-    ctx.stroke();
-
-    // label
+    // ID label
     ctx.fillStyle   = color;
-    ctx.font        = 'bold 12px monospace';
+    ctx.font        = 'bold 13px monospace';
     ctx.textAlign   = 'center';
-    ctx.fillText(`Z${parseInt(id)+1}${confirmed?' ✓':''}`, m.x, m.y - size/2 - 6);
+    ctx.globalAlpha = alpha;
+    ctx.fillText(`ID:${Object.keys(detectedMarkers).indexOf(String(Object.entries(detectedMarkers).find(([k,v]) => v === m)?.[0]))+ 1}`,
+      m.center.x, m.center.y + 30);
+    ctx.globalAlpha = 1;
   });
 }
 
-// ══ Indicators ══
-function buildIndicators() {
-  const cont = document.getElementById('imp-indicators');
-  cont.innerHTML = '';
-  for (let i = 0; i < implantCount; i++) {
-    cont.innerHTML += `
-      <div class="imp-ind">
-        <div class="imp-circle" id="imp-c-${i}">${i+1}</div>
-        <div class="imp-label">Z${i+1}</div>
-      </div>`;
-  }
-}
+// ══ Update UI ══
+function updateUI(w, h) {
+  const confirmed = Object.values(detectedMarkers)
+    .filter(m => m.frames >= CONFIRM_FRAMES).length;
+  const total     = Object.keys(detectedMarkers).length;
 
-function updateIndicators() {
+  // status
+  const dot = document.getElementById('sdot');
+  const txt = document.getElementById('status-text');
+  const btn = document.getElementById('analyze-btn');
+
+  if (confirmed >= implantCount) {
+    dot.className = 'sdot found';
+    txt.textContent = `✓ تم تحديد ${confirmed} زراعات`;
+    btn.classList.add('ready');
+    if (navigator.vibrate && !scanComplete) {
+      navigator.vibrate([50, 30, 100]);
+      scanComplete = true;
+    }
+  } else {
+    dot.className = 'sdot';
+    txt.textContent = total > 0
+      ? `مكتشف: ${total} | مؤكد: ${confirmed}/${implantCount}`
+      : 'جاري البحث عن الماركرات...';
+    btn.classList.remove('ready');
+    scanComplete = false;
+  }
+
+  // gauge — distance indicator
+  const gauge = document.getElementById('gauge-fill');
+  if (total > 0) {
+    const avgSize = Object.values(detectedMarkers).reduce((s, m) => {
+      const dx = m.corners[1].x - m.corners[0].x;
+      const dy = m.corners[1].y - m.corners[0].y;
+      return s + Math.sqrt(dx*dx + dy*dy);
+    }, 0) / total;
+
+    // حجم مثالي 60-100px
+    const ideal = 80;
+    const ratio = Math.min(1, avgSize / ideal);
+    gauge.style.width      = (ratio * 100) + '%';
+    gauge.style.background = ratio < 0.4 ? '#ff3d3d'
+                           : ratio > 0.9 ? '#ff3d3d'
+                           : '#00e676';
+  } else {
+    gauge.style.width = '0%';
+  }
+
+  // مؤشرات الزراعات
+  // نعين كل marker ID لزراعة بالترتيب
+  const sortedIds = Object.keys(detectedMarkers)
+    .filter(id => detectedMarkers[id].frames >= CONFIRM_FRAMES)
+    .slice(0, implantCount);
+
   for (let i = 0; i < implantCount; i++) {
     const circle = document.getElementById(`imp-c-${i}`);
     if (!circle) continue;
-    const m = markers[i];
-    if (!m) {
-      circle.className = 'imp-circle';
-    } else if (m.locked) {
+    if (sortedIds[i] !== undefined) {
       circle.className = 'imp-circle found';
+      circle.textContent = `✓`;
+    } else if (i < total) {
+      circle.className = 'imp-circle partial';
+      circle.textContent = `Z${i+1}`;
     } else {
-      circle.className = 'imp-circle locked';
+      circle.className = 'imp-circle';
+      circle.textContent = `Z${i+1}`;
     }
   }
-}
-
-function updateRemaining() {
-  const placed    = Object.keys(markers).length;
-  const remaining = implantCount - placed;
-  document.getElementById('remaining-count').textContent = remaining;
-
-  const hint = document.getElementById('tap-hint');
-  if (remaining === 0) {
-    hint.style.display = 'none';
-  } else {
-    hint.style.display = 'block';
-    hint.innerHTML = `اضغط على كل scan body<br>بالشاشة لتحديد موضعه<br><span style="color:var(--accent);font-size:12px">متبقي: <span id="remaining-count">${remaining}</span> زراعة</span>`;
-  }
-}
-
-function checkAllLocked() {
-  const locked = Object.values(markers).filter(m => m.locked).length;
-  const btn    = document.getElementById('analyze-btn');
-  const dot    = document.getElementById('sdot');
-  const txt    = document.getElementById('status-text');
-
-  if (locked === implantCount && implantCount > 0) {
-    btn.classList.add('ready');
-    dot.className = 'sdot found';
-    txt.textContent = `✓ تم تحديد ${implantCount} زراعات`;
-  } else {
-    btn.classList.remove('ready');
-    dot.className = 'sdot';
-    txt.textContent = `محدد: ${locked}/${implantCount}`;
-  }
-}
-
-function resetMarkers() {
-  markers = {};
-  updateIndicators();
-  updateRemaining();
-  document.getElementById('analyze-btn').classList.remove('ready');
-  document.getElementById('sdot').className = 'sdot';
-  document.getElementById('status-text').textContent = 'اضغط على الزراعات';
-  document.getElementById('tap-hint').style.display = 'block';
-}
-
-// ══ Stop ══
-function stopScan() {
-  if (rafId) cancelAnimationFrame(rafId);
-  if (stream) stream.getTracks().forEach(t=>t.stop());
-  const canvas = document.getElementById('overlay-canvas');
-  canvas.removeEventListener('click', onCanvasTap);
-  canvas.removeEventListener('touchend', onCanvasTap);
-  goTo('s-start');
 }
 
 // ══ Analysis ══
 async function runAnalysis() {
   if (rafId) cancelAnimationFrame(rafId);
-  if (stream) stream.getTracks().forEach(t=>t.stop());
-  const canvas = document.getElementById('overlay-canvas');
-  canvas.removeEventListener('click', onCanvasTap);
-  canvas.removeEventListener('touchend', onCanvasTap);
-
+  if (stream) stream.getTracks().forEach(t => t.stop());
   goTo('s-processing');
 
-  try {
-    const frames = capturedFrames.slice(0, 15);
-    const formData = new FormData();
-    formData.append('num_implants', implantCount);
+  // بناء النتائج من الـ pose estimation
+  const results = buildResults();
 
-    for (let i = 0; i < frames.length; i++) {
-      const res  = await fetch(frames[i]);
-      const blob = await res.blob();
-      formData.append('images', blob, `frame_${i}.jpg`);
-    }
-
-    const response = await fetch(`${API}/analyze`, {method:'POST', body:formData});
-    const data     = await response.json();
-
-    if (data.success) showResults(data.implants);
-    else showResults(buildResultsFromMarkers());
-
-  } catch(e) {
-    await new Promise(r=>setTimeout(r,1500));
-    showResults(buildResultsFromMarkers());
-  }
+  await new Promise(r => setTimeout(r, 1000));
+  showResults(results);
 }
 
-// بناء النتائج من مواضع الماركرات اليدوية
-function buildResultsFromMarkers() {
-  const canvas = document.getElementById('overlay-canvas');
-  const w = canvas.width  || 1280;
-  const h = canvas.height || 720;
+function buildResults() {
+  const confirmed = Object.entries(detectedMarkers)
+    .filter(([id, m]) => m.frames >= CONFIRM_FRAMES)
+    .slice(0, implantCount);
 
-  // نحول إحداثيات البكسل لـ mm تقريبية
-  // بافتراض مسافة 10cm من الكاميرا وعرض view ≈ 80mm
-  const scale = 80 / w;
+  return confirmed.map(([markerId, m], idx) => {
+    let x = 0, y = 0, z = 0;
+    let ax = 0, ay = 0, az = 0;
 
-  return Object.keys(markers).map(id => {
-    const m  = markers[id];
-    const xm = ((m.x - w/2) * scale).toFixed(3);
-    const ym = ((m.y - h/2) * scale).toFixed(3);
+    // استخدام الـ pose إذا متوفر
+    if (m.pose && m.pose.bestError < 10) {
+      const t = m.pose.bestTranslation;
+      x = t ? t[0].toFixed(3) : m.center.x.toFixed(1);
+      y = t ? t[1].toFixed(3) : m.center.y.toFixed(1);
+      z = t ? t[2].toFixed(3) : '0.000';
+    } else {
+      // من موضع الكاميرا
+      const canvas = document.getElementById('overlay-canvas');
+      const w = canvas.width  || 1280;
+      const h = canvas.height || 720;
+      const scale = 80 / w;
+      x = ((m.center.x - w/2) * scale).toFixed(3);
+      y = ((m.center.y - h/2) * scale).toFixed(3);
+      z = '0.000';
+    }
 
     return {
-      id:      parseInt(id)+1,
-      label:   `زراعة ${parseInt(id)+1}`,
-      x:       xm,
-      y:       ym,
-      z:       "0.000",
-      angle_x: "0.0",
-      angle_y: "0.0",
-      angle_z: "0.0",
-      quality: m.locked ? 92 : 75
+      id:      idx + 1,
+      aruco_id: markerId,
+      label:   `زراعة ${idx+1} (ArUco #${markerId})`,
+      x, y, z,
+      angle_x: ax.toFixed(1),
+      angle_y: ay.toFixed(1),
+      angle_z: az.toFixed(1),
+      quality: Math.min(99, Math.floor(m.frames * 5))
     };
   });
 }
 
 function showResults(implants) {
   document.getElementById('res-sub').textContent =
-    `${implantCount} زراعة — ${capturedFrames.length} إطار`;
+    `${implants.length} زراعة — ${capturedFrames.length} إطار`;
 
   const cont = document.getElementById('imp-cards');
   cont.innerHTML = '';
 
-  implants.forEach(imp => {
-    cont.innerHTML += `
-      <div class="imp-card">
-        <div class="imp-card-head">
-          <div class="imp-tag">Z-${String(imp.id).padStart(2,'0')}</div>
-          <div class="imp-q">جودة ${imp.quality}%</div>
-        </div>
-        <div class="coords">
-          <div class="coord"><span>X (mm)</span><span>${imp.x}</span></div>
-          <div class="coord"><span>Y (mm)</span><span>${imp.y}</span></div>
-          <div class="coord"><span>Z (mm)</span><span>${imp.z}</span></div>
-          <div class="coord"><span>Rx (°)</span><span>${imp.angle_x}</span></div>
-          <div class="coord"><span>Ry (°)</span><span>${imp.angle_y}</span></div>
-          <div class="coord"><span>Rz (°)</span><span>${imp.angle_z}</span></div>
-        </div>
-      </div>`;
-  });
+  if (implants.length === 0) {
+    cont.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px">ما تم اكتشاف زراعات — حاول مرة ثانية</p>';
+  } else {
+    implants.forEach(imp => {
+      cont.innerHTML += `
+        <div class="imp-card">
+          <div class="imp-card-head">
+            <div class="imp-tag">ArUco #${imp.aruco_id}</div>
+            <div class="imp-q">جودة ${imp.quality}%</div>
+          </div>
+          <div class="coords">
+            <div class="coord"><span>X (mm)</span><span>${imp.x}</span></div>
+            <div class="coord"><span>Y (mm)</span><span>${imp.y}</span></div>
+            <div class="coord"><span>Z (mm)</span><span>${imp.z}</span></div>
+            <div class="coord"><span>Rx (°)</span><span>${imp.angle_x}</span></div>
+            <div class="coord"><span>Ry (°)</span><span>${imp.angle_y}</span></div>
+            <div class="coord"><span>Rz (°)</span><span>${imp.angle_z}</span></div>
+          </div>
+        </div>`;
+    });
+  }
 
   goTo('s-results');
 }
 
+// ══ Stop / Export / New ══
+function stopScan() {
+  if (rafId) cancelAnimationFrame(rafId);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  goTo('s-start');
+}
+
 function exportCSV() {
-  const rows = ['Implant,X,Y,Z,Rx,Ry,Rz'];
-  document.querySelectorAll('.imp-card').forEach((c,i)=>{
-    const v = [...c.querySelectorAll('.coord span:last-child')].map(s=>s.textContent);
-    rows.push(`Z-${String(i+1).padStart(2,'0')},${v.join(',')}`);
+  const rows = ['Implant,ArUco_ID,X,Y,Z,Rx,Ry,Rz'];
+  document.querySelectorAll('.imp-card').forEach((c, i) => {
+    const tag = c.querySelector('.imp-tag').textContent.replace('ArUco #','');
+    const v   = [...c.querySelectorAll('.coord span:last-child')].map(s=>s.textContent);
+    rows.push(`Z-${String(i+1).padStart(2,'0')},${tag},${v.join(',')}`);
   });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
   a.download = `ImplantScan_${Date.now()}.csv`;
   a.click();
 }
 
 function newScan() {
-  markers = {};
-  capturedFrames = [];
+  detectedMarkers = {};
+  capturedFrames  = [];
+  scanComplete    = false;
   goTo('s-start');
 }
 </script>
