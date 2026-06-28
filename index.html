@@ -157,7 +157,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 let implantCount    = 2;
 let stream          = null;
 let rafId           = null;
-let detector        = null;
+let detectors       = [];   // multiple dictionaries
 let detectedMarkers = {};
 let capturedFrames  = [];
 
@@ -166,21 +166,28 @@ window.addEventListener('load', () => {
   const statusEl = document.getElementById('lib-status');
   if (typeof AR !== 'undefined') {
     try {
-      detector = new AR.Detector({ dictionaryName: 'ARUCO' });
-      statusEl.textContent = '✓ ArUco جاهز';
+      const dicts = ['ARUCO', 'ARUCO_MIP_36h12', 'ARUCO_4X4_1000'];
+      detectors = dicts.map(d => {
+        try { return { name: d, det: new AR.Detector({ dictionaryName: d }) }; }
+        catch(e) { return null; }
+      }).filter(Boolean);
+      statusEl.textContent = `✓ ArUco جاهز (${detectors.length} dictionaries)`;
       statusEl.className   = 'lib-status ok';
     } catch(e) {
-      statusEl.textContent = '✗ خطأ بالمكتبة: ' + e.message;
+      statusEl.textContent = '✗ خطأ: ' + e.message;
       statusEl.className   = 'lib-status err';
     }
   } else {
-    statusEl.textContent = '✗ المكتبة ما حملت — تحقق من الاتصال';
+    statusEl.textContent = '✗ المكتبة ما حملت';
     statusEl.className   = 'lib-status err';
-    // retry after 2s
     setTimeout(() => {
       if (typeof AR !== 'undefined') {
-        detector = new AR.Detector({ dictionaryName: 'ARUCO' });
-        statusEl.textContent = '✓ ArUco جاهز';
+        const dicts = ['ARUCO', 'ARUCO_MIP_36h12', 'ARUCO_4X4_1000'];
+        detectors = dicts.map(d => {
+          try { return { name: d, det: new AR.Detector({ dictionaryName: d }) }; }
+          catch(e) { return null; }
+        }).filter(Boolean);
+        statusEl.textContent = `✓ ArUco جاهز (${detectors.length} dictionaries)`;
         statusEl.className   = 'lib-status ok';
       }
     }, 2000);
@@ -199,11 +206,15 @@ function changeCount(d) {
 
 // ══ Start ══
 async function startScan() {
-  if (!detector) {
+  if (!detectors.length) {
     if (typeof AR !== 'undefined') {
-      detector = new AR.Detector({ dictionaryName: 'ARUCO' });
+      const dicts = ['ARUCO', 'ARUCO_MIP_36h12', 'ARUCO_4X4_1000'];
+      detectors = dicts.map(d => {
+        try { return { name: d, det: new AR.Detector({ dictionaryName: d }) }; }
+        catch(e) { return null; }
+      }).filter(Boolean);
     } else {
-      alert('المكتبة ما حملت — تحقق من الاتصال بالإنترنت وأعد تحميل الصفحة');
+      alert('المكتبة ما حملت — أعد تحميل الصفحة');
       return;
     }
   }
@@ -250,10 +261,18 @@ function trackLoop() {
   if (detector) {
     try {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const markers   = detector.detect(imageData);
-      const seen      = new Set();
-
-      markers.forEach(m => {
+      
+      // نجمع النتائج من كل الـ dictionaries
+      const allMarkers = [];
+      detectors.forEach(({ name, det }) => {
+        try {
+          const found = det.detect(imageData);
+          found.forEach(m => allMarkers.push({ ...m, dict: name }));
+        } catch(e) {}
+      });
+      
+      const seen = new Set();
+      allMarkers.forEach(m => {
         seen.add(m.id);
         if (!detectedMarkers[m.id]) {
           detectedMarkers[m.id] = { corners: m.corners, frames: 0 };
