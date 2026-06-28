@@ -160,6 +160,7 @@ let rafId           = null;
 let detectors       = [];   // multiple dictionaries
 let detectedMarkers = {};
 let capturedFrames  = [];
+let frameCount      = 0;
 
 // ══ Check library ══
 window.addEventListener('load', () => {
@@ -257,20 +258,21 @@ function trackLoop() {
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
 
-  // ArUco detection
-  if (detector) {
+  frameCount++;
+
+  // Detection كل 3 frames — يخفف الضغط على الموبايل
+  if (frameCount % 3 === 0 && detectors.length) {
     try {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      
-      // نجمع النتائج من كل الـ dictionaries
+      const imageData  = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const allMarkers = [];
+
       detectors.forEach(({ name, det }) => {
         try {
-          const found = det.detect(imageData);
-          found.forEach(m => allMarkers.push({ ...m, dict: name }));
+          det.detect(imageData).forEach(m =>
+            allMarkers.push({ ...m, dict: name }));
         } catch(e) {}
       });
-      
+
       const seen = new Set();
       allMarkers.forEach(m => {
         seen.add(m.id);
@@ -294,7 +296,7 @@ function trackLoop() {
   updateUI();
 
   if (capturedFrames.length < 30) {
-    capturedFrames.push(canvas.toDataURL('image/jpeg', 0.6));
+    capturedFrames.push(canvas.toDataURL('image/jpeg', 0.5));
   }
 
   rafId = requestAnimationFrame(trackLoop);
