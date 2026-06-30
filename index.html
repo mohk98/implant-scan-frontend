@@ -5,11 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ImplantScan</title>
 <script src="cv.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="aruco.js"></script>
 <script src="posit1.js"></script>
-<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 :root{
@@ -22,7 +19,6 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s}
 .screen.active{opacity:1;pointer-events:all}
 
-/* START */
 #s-start{align-items:center;justify-content:center;padding:32px 24px;gap:18px}
 .brand{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:4px;color:var(--muted)}
 .hero{width:88px;height:88px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative}
@@ -41,51 +37,57 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 .btn-main{width:100%;max-width:280px;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#000;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:15px;font-weight:600;cursor:pointer}
 .btn-main:active{opacity:.8}
 
-/* SCAN */
 #s-scan{background:#000}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #overlay-canvas{position:absolute;inset:0;width:100%;height:100%}
 .hud{position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none}
 .hud-top{padding:14px 18px 10px;background:linear-gradient(#000b,transparent);display:flex;align-items:center;justify-content:space-between;pointer-events:all}
 .hud-logo{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);letter-spacing:2px}
-.hud-btns{display:flex;gap:8px}
-.btn-sm{background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 12px;border-radius:16px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans Arabic',sans-serif}
+.btn-cancel{background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer}
 .hud-bottom{padding:14px 18px 32px;background:linear-gradient(transparent,#000c);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:all}
 .status-pill{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:8px 18px;font-size:13px;backdrop-filter:blur(8px)}
 .sdot{width:8px;height:8px;border-radius:50%;background:var(--yellow);animation:blink 1s infinite;flex-shrink:0}
 .sdot.found{background:var(--green);animation:none}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .imp-indicators{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-.imp-circle{width:34px;height:34px;border-radius:50%;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);transition:all .3s;background:rgba(0,0,0,.5)}
+.imp-circle{width:36px;height:36px;border-radius:50%;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);transition:all .3s;background:rgba(0,0,0,.5)}
 .imp-circle.found{border-color:var(--green);color:var(--green);background:rgba(0,230,118,.1)}
 .analyze-btn{width:100%;max-width:280px;padding:14px;border:none;border-radius:14px;background:var(--green);color:#000;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:15px;font-weight:600;cursor:pointer;opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s;pointer-events:none}
 .analyze-btn.ready{opacity:1;transform:translateY(0);pointer-events:all}
 
-/* 3D VIEW */
-#s-3d{background:var(--bg)}
-#three-canvas{position:absolute;inset:0;width:100%;height:100%}
-.view3d-hud{position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none}
-.view3d-top{padding:14px 18px;background:linear-gradient(#000b,transparent);display:flex;align-items:center;justify-content:space-between;pointer-events:all}
-.view3d-bottom{margin-top:auto;padding:16px 18px 32px;background:linear-gradient(transparent,#000c);pointer-events:all}
-.implant-list{display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto}
-.implant-item{background:rgba(0,0,0,.6);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(8px)}
-.implant-item.active{border-color:var(--green)}
-.imp-name{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent)}
-.imp-coords{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
-.view3d-actions{display:flex;gap:8px;margin-top:12px}
-.btn-action{flex:1;padding:12px;border:none;border-radius:12px;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:13px;font-weight:600;cursor:pointer}
-.btn-export{background:var(--accent);color:#000}
-.btn-rescan{background:var(--surface);color:var(--text);border:1px solid var(--border)}
-
-/* PROCESSING */
 #s-processing{align-items:center;justify-content:center;gap:20px;padding:40px}
 .spin{width:70px;height:70px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+#s-processing h2{font-size:20px}
+#s-processing p{color:var(--muted);font-size:13px;text-align:center}
+
+#s-results{flex-direction:column;overflow-y:auto;padding:24px 20px 40px}
+.res-header{text-align:center;margin-bottom:16px}
+.res-header h2{font-size:20px;margin-bottom:4px}
+.res-header p{color:var(--muted);font-size:13px}
+.acc-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,230,118,.08);border:1px solid var(--green);border-radius:20px;padding:6px 16px;font-size:13px;color:var(--green);margin-bottom:20px}
+.imp-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.imp-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.imp-card-head{display:flex;justify-content:space-between;margin-bottom:10px}
+.imp-tag{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);background:rgba(0,212,255,.08);padding:3px 8px;border-radius:6px}
+.imp-q{font-size:12px;color:var(--green)}
+.coords{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.coord{background:var(--bg);border-radius:8px;padding:7px;text-align:center}
+.coord span:first-child{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:2px}
+.coord span:last-child{font-family:'IBM Plex Mono',monospace;font-size:12px}
+.btns{display:flex;flex-direction:column;gap:8px}
+.exp-btn{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;width:100%;font-family:'IBM Plex Sans Arabic',sans-serif}
+.btn-sec{width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'IBM Plex Sans Arabic',sans-serif;font-size:13px;cursor:pointer}
+
+#s-3d{background:var(--bg)}
+#three-container{flex:1;position:relative}
+.view3d-top{padding:14px 18px;background:linear-gradient(#000b,transparent);display:flex;justify-content:space-between;align-items:center;position:absolute;top:0;left:0;right:0;z-index:10}
+.view3d-hint{position:absolute;bottom:24px;left:0;right:0;display:flex;justify-content:center;z-index:10}
+.hint-pill{background:rgba(0,0,0,.7);border:1px solid var(--border);border-radius:14px;padding:10px 18px;font-size:12px;text-align:center;backdrop-filter:blur(8px);color:var(--muted)}
 </style>
 </head>
 <body>
 
-<!-- START -->
 <div class="screen active" id="s-start">
   <div class="brand">IMPLANTSCAN</div>
   <div class="hero">
@@ -99,7 +101,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
     </svg>
   </div>
   <h1>تحديد مواضع الزراعات</h1>
-  <p>وجّه الكاميرا نحو الـ scan bodies<br>النظام يتعرف عليهم تلقائياً</p>
+  <p>وجّه الكاميرا نحو الـ scan bodies<br>النظام يتعرف عليهم تلقائياً بـ ArUco</p>
   <div id="lib-status" class="lib-status">جاري تحميل المكتبة...</div>
   <div class="count-row">
     <span class="count-label">عدد الزراعات</span>
@@ -112,553 +114,74 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
   <button class="btn-main" onclick="startScan()">ابدأ الفحص</button>
 </div>
 
-<!-- SCAN -->
 <div class="screen" id="s-scan">
   <video id="video" autoplay playsinline muted></video>
   <canvas id="overlay-canvas"></canvas>
   <div class="hud">
     <div class="hud-top">
       <div class="hud-logo">IMPLANTSCAN</div>
-      <div class="hud-btns">
-        <button class="btn-sm" onclick="toggle3DPreview()">3D</button>
-        <button class="btn-sm" onclick="stopScan()">إيقاف</button>
-      </div>
+      <button class="btn-cancel" onclick="stopScan()">إيقاف</button>
     </div>
     <div style="flex:1"></div>
     <div class="hud-bottom">
       <div class="status-pill">
         <div class="sdot" id="sdot"></div>
-        <span id="status-text">جاري البحث...</span>
+        <span id="status-text">جاري البحث عن الماركرات...</span>
       </div>
       <div class="imp-indicators" id="imp-indicators"></div>
-      <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">
-        عرض النتائج 3D ←
-      </button>
+      <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">تحليل المواضع ←</button>
     </div>
   </div>
 </div>
 
-<!-- 3D VIEW -->
-<div class="screen" id="s-3d">
-  <canvas id="three-canvas"></canvas>
-  <div class="view3d-hud">
-    <div class="view3d-top">
-      <div class="hud-logo">3D VIEW</div>
-      <button class="btn-sm" onclick="goTo('s-scan')">← رجوع</button>
-    </div>
-    <div class="view3d-bottom">
-      <div class="implant-list" id="implant-list"></div>
-      <div class="view3d-actions">
-        <button class="btn-action btn-export" onclick="exportCSV()">تصدير CSV</button>
-        <button class="btn-action btn-rescan" onclick="newScan()">فحص جديد</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- PROCESSING -->
 <div class="screen" id="s-processing">
   <div class="spin"></div>
-  <p style="color:var(--muted);margin-top:16px">جاري الحساب...</p>
+  <h2>جاري الحساب</h2>
+  <p>يتم حساب إحداثيات الزراعات</p>
 </div>
 
-<!-- 3D VIEW -->
-<div class="screen" id="s-3d">
-  <div style="position:absolute;inset:0;background:var(--bg)">
-    <canvas id="three-canvas" style="width:100%;height:100%"></canvas>
+<div class="screen" id="s-results">
+  <div class="res-header">
+    <h2>✓ اكتمل التحليل</h2>
+    <p id="res-sub"></p>
   </div>
-  <div style="position:absolute;top:0;left:0;right:0;padding:16px 20px;background:linear-gradient(#000b,transparent);display:flex;justify-content:space-between;align-items:center">
-    <div style="font-family:IBM Plex Mono,monospace;font-size:12px;color:var(--accent);letter-spacing:2px">3D VIEW</div>
-    <button onclick="goTo('s-results')" style="background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer">← رجوع</button>
-  </div>
-  <div style="position:absolute;bottom:32px;left:0;right:0;display:flex;justify-content:center">
-    <div id="3d-info" style="background:rgba(0,0,0,.7);border:1px solid var(--border);border-radius:14px;padding:12px 20px;font-size:13px;text-align:center;backdrop-filter:blur(8px)">
-      اسحب للتدوير • اضغط مرتين للإعادة
-    </div>
+  <div class="acc-badge"><span>●</span><span>ArUco Detection</span></div>
+  <div class="imp-cards" id="imp-cards"></div>
+  <div class="btns">
+    <button class="exp-btn" onclick="show3DView()">
+      <span>🧊</span><span>عرض ثلاثي الأبعاد</span>
+    </button>
+    <button class="exp-btn" onclick="exportCSV()">
+      <span>📊</span><span>تصدير CSV</span>
+    </button>
+    <button class="btn-sec" onclick="newScan()">فحص جديد</button>
   </div>
 </div>
 
-
-<!-- 3D VIEW -->
 <div class="screen" id="s-3d">
-  <div class="hud-top" style="pointer-events:all">
+  <div class="view3d-top">
     <div class="hud-logo">IMPLANTSCAN — 3D</div>
     <button class="btn-cancel" onclick="goTo('s-results')">رجوع</button>
   </div>
-  <div id="three-container" style="flex:1;position:relative"></div>
-  <div style="padding:16px 20px 32px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
-    <button class="btn-main" onclick="goTo('s-results')" style="max-width:none">عرض الإحداثيات</button>
+  <div id="three-container"></div>
+  <div class="view3d-hint">
+    <div class="hint-pill">اسحب لتدوير المشهد</div>
   </div>
 </div>
 
 <script>
-// ══ State ══
 let implantCount    = 2;
 let stream          = null;
 let rafId           = null;
 let detectors       = [];
 let detectedMarkers = {};
-let lastResults     = [];
 let capturedFrames  = [];
 let frameCount      = 0;
-let show3DPreview   = false;
-
-// Three.js
-let threeScene, threeCamera, threeRenderer;
-let implantMeshes   = {};
-let threeRafId      = null;
-
-const SCAN_BODY_HEIGHT = 14.0;  // mm — ارتفاع الـ scan body
-const MARKER_SIZE_MM   = 6.0;   // mm — حجم الـ ArUco
-
-// ══ Init ══
-window.addEventListener('load', () => {
-  const el = document.getElementById('lib-status');
-  const tryInit = () => {
-    if (typeof AR !== 'undefined') {
-      try {
-        const dicts = ['ARUCO_MIP_36h12', 'ARUCO'];
-        detectors = dicts.map(d => {
-          try { return { name: d, det: new AR.Detector({ dictionaryName: d }) }; }
-          catch(e) { return null; }
-        }).filter(Boolean);
-        el.textContent = `✓ ArUco جاهز`;
-        el.className   = 'lib-status ok';
-      } catch(e) {
-        el.textContent = '✗ خطأ: ' + e.message;
-        el.className   = 'lib-status err';
-      }
-    } else {
-      el.textContent = '✗ المكتبة ما حملت';
-      el.className   = 'lib-status err';
-    }
-  };
-  tryInit();
-  setTimeout(tryInit, 1500);
-  initThreeJS();
-});
-
-// ══ Three.js Init ══
-function initThreeJS() {
-  const canvas = document.getElementById('three-canvas');
-  threeScene    = new THREE.Scene();
-  threeScene.background = new THREE.Color(0x080c10);
-
-  threeCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-  threeCamera.position.set(0, -80, 60);
-  threeCamera.lookAt(0, 0, 0);
-
-  threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-
-  // إضاءة
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-  threeScene.add(ambient);
-  const dirLight = new THREE.DirectionalLight(0x00d4ff, 0.8);
-  dirLight.position.set(0, -50, 100);
-  threeScene.add(dirLight);
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
-  dirLight2.position.set(50, 50, 50);
-  threeScene.add(dirLight2);
-
-  // Grid floor
-  const gridHelper = new THREE.GridHelper(100, 20, 0x1a2a3a, 0x1a2a3a);
-  gridHelper.rotation.x = Math.PI / 2;
-  threeScene.add(gridHelper);
-
-  // محاور
-  const axesHelper = new THREE.AxesHelper(15);
-  threeScene.add(axesHelper);
-
-  resizeThree();
-  window.addEventListener('resize', resizeThree);
-
-  // Touch/Mouse rotation
-  setupThreeControls(canvas);
-}
-
-function resizeThree() {
-  const canvas = document.getElementById('three-canvas');
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  threeRenderer.setSize(w, h, false);
-  threeCamera.aspect = w / h;
-  threeCamera.updateProjectionMatrix();
-}
-
-// ══ Three.js Controls ══
-let isDragging = false, lastX = 0, lastY = 0;
-let rotX = 0.4, rotY = 0;
-
-function setupThreeControls(canvas) {
-  canvas.addEventListener('touchstart', e => {
-    isDragging = true;
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
-  });
-  canvas.addEventListener('touchmove', e => {
-    if (!isDragging) return;
-    const dx = e.touches[0].clientX - lastX;
-    const dy = e.touches[0].clientY - lastY;
-    rotY += dx * 0.01;
-    rotX += dy * 0.01;
-    rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
-    updateCameraPosition();
-  });
-  canvas.addEventListener('touchend', () => isDragging = false);
-  canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
-  canvas.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    rotY += (e.clientX - lastX) * 0.01;
-    rotX += (e.clientY - lastY) * 0.01;
-    rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
-    lastX = e.clientX; lastY = e.clientY;
-    updateCameraPosition();
-  });
-  canvas.addEventListener('mouseup', () => isDragging = false);
-}
-
-function updateCameraPosition() {
-  const r = 80;
-  threeCamera.position.x = r * Math.sin(rotY) * Math.cos(rotX);
-  threeCamera.position.y = -r * Math.sin(rotX);
-  threeCamera.position.z = r * Math.cos(rotY) * Math.cos(rotX);
-  threeCamera.lookAt(0, 0, 0);
-}
-
-// ══ Update 3D Scene ══
-function update3DScene(markers) {
-  // احذف الـ meshes القديمة
-  Object.keys(implantMeshes).forEach(id => {
-    if (!markers[id]) {
-      threeScene.remove(implantMeshes[id].group);
-      delete implantMeshes[id];
-    }
-  });
-
-  Object.entries(markers).forEach(([id, m]) => {
-    if (m.frames < 5) return;
-
-    const pos = getImplantPosition(m);
-
-    if (!implantMeshes[id]) {
-      // Scan Body (cylinder)
-      const bodyGeo  = new THREE.CylinderGeometry(2, 2, 14, 6);
-      const bodyMat  = new THREE.MeshPhongMaterial({
-        color: 0x00d4ff,
-        transparent: true,
-        opacity: 0.8,
-        emissive: 0x003344
-      });
-      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-
-      // Implant (cylinder أسفل)
-      const implGeo  = new THREE.CylinderGeometry(1.5, 1.2, 10, 8);
-      const implMat  = new THREE.MeshPhongMaterial({
-        color: 0xcccccc,
-        emissive: 0x222222
-      });
-      const implMesh = new THREE.Mesh(implGeo, implMat);
-      implMesh.position.y = -12;
-
-      // نقطة مركزية
-      const dotGeo = new THREE.SphereGeometry(1.5, 8, 8);
-      const dotMat = new THREE.MeshPhongMaterial({
-        color: 0x00e676,
-        emissive: 0x004400
-      });
-      const dotMesh = new THREE.Mesh(dotGeo, dotMat);
-      dotMesh.position.y = -7;
-
-      // Label (sprite)
-      const group = new THREE.Group();
-      group.add(bodyMesh);
-      group.add(implMesh);
-      group.add(dotMesh);
-
-      threeScene.add(group);
-      implantMeshes[id] = { group, bodyMesh, implMesh, dotMesh };
-    }
-
-    // تحديث الموضع
-    const mesh = implantMeshes[id];
-    mesh.group.position.set(pos.x, pos.y, pos.z);
-    mesh.group.rotation.set(pos.rx, pos.ry, pos.rz);
-
-    // لون حسب الـ confidence
-    const conf = Math.min(1, m.frames / 15);
-    mesh.bodyMesh.material.opacity = 0.4 + conf * 0.6;
-  });
-}
-
-// ══ Pose Estimation ══
-function getImplantPosition(m) {
-  const canvas = document.getElementById('overlay-canvas');
-  const w = canvas.width || 1280;
-  const h = canvas.height || 720;
-
-  let x = 0, y = 0, z = 50, rx = 0, ry = 0, rz = 0;
-
-  // نحاول الـ pose estimation
-  try {
-    if (typeof POS !== 'undefined') {
-      const posit = new POS.Posit(MARKER_SIZE_MM, w);
-      const corners = m.corners.map(c => ({
-        x: c.x - w/2,
-        y: h/2 - c.y
-      }));
-      const pose = posit.pose(corners);
-
-      if (pose && pose.bestError < 100) {
-        const t = pose.bestTranslation;
-        const r = pose.bestRotation;
-        x  = t[0];
-        y  = t[1];
-        z  = t[2] / 5;  // scale
-        rx = Math.atan2(r[2][1], r[2][2]);
-        ry = Math.atan2(-r[2][0], Math.sqrt(r[2][1]**2 + r[2][2]**2));
-        rz = Math.atan2(r[1][0], r[0][0]);
-      }
-    }
-  } catch(e) {}
-
-  // fallback من موضع البكسل
-  if (x === 0 && y === 0) {
-    const cx  = m.corners.reduce((s,c) => s+c.x, 0) / 4;
-    const cy  = m.corners.reduce((s,c) => s+c.y, 0) / 4;
-    const scale = 80 / w;
-    x = (cx - w/2) * scale;
-    y = -(cy - h/2) * scale;
-    z = 30;
-  }
-
-  return { x, y, z, rx, ry, rz };
-}
-
-// ══ Nav ══
-
-// ══ Three.js 3D View ══
-let threeScene    = null;
-let threeCamera   = null;
-let threeRenderer = null;
-let threeAnimId   = null;
-let isDragging    = false;
-let prevMouse     = { x: 0, y: 0 };
-let spherical     = { theta: 0.5, phi: 1.0, radius: 150 };
-
-function show3DView() {
-  goTo('s-3d');
-  setTimeout(() => init3D(), 100);
-}
-
-function init3D() {
-  if (threeRenderer) {
-    threeRenderer.dispose();
-    cancelAnimationFrame(threeAnimId);
-  }
-
-  const canvas = document.getElementById('three-canvas');
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-
-  // Scene
-  threeScene = new THREE.Scene();
-  threeScene.background = new THREE.Color(0x080c10);
-
-  // Grid
-  const grid = new THREE.GridHelper(200, 20, 0x1a2a3a, 0x1a2a3a);
-  threeScene.add(grid);
-
-  // Camera
-  threeCamera = new THREE.PerspectiveCamera(45, w/h, 0.1, 1000);
-  updateCameraPos();
-
-  // Renderer
-  threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  threeRenderer.setSize(w, h);
-  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  // إضاءة
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  threeScene.add(ambient);
-  const dirLight = new THREE.DirectionalLight(0x00d4ff, 0.8);
-  dirLight.position.set(50, 100, 50);
-  threeScene.add(dirLight);
-
-  // رسم الزراعات من النتائج
-  renderImplants();
-
-  // Axes helper
-  const axes = new THREE.AxesHelper(30);
-  threeScene.add(axes);
-
-  // Touch/Mouse controls
-  setupControls(canvas);
-
-  // Animation loop
-  function animate() {
-    threeAnimId = requestAnimationFrame(animate);
-    threeRenderer.render(threeScene, threeCamera);
-  }
-  animate();
-}
-
-function renderImplants() {
-  // نجيب الإحداثيات من النتائج الحالية
-  const cards = document.querySelectorAll('.imp-card');
-  const colors = [0x00e676, 0x00d4ff, 0xffcc00, 0xff6b35, 0xff3d3d,
-                  0xa855f7, 0xec4899, 0x14b8a6, 0xf59e0b, 0x6366f1];
-
-  cards.forEach((card, idx) => {
-    const vals = [...card.querySelectorAll('.coord span:last-child')]
-      .map(s => parseFloat(s.textContent) || 0);
-    const [x, y, z] = vals;
-
-    const color = colors[idx % colors.length];
-
-    // Scan Body (جسم خماسي مقرب بأسطوانة)
-    const bodyGeo = new THREE.CylinderGeometry(4, 4, 14, 5);
-    const bodyMat = new THREE.MeshPhongMaterial({
-      color, transparent: true, opacity: 0.85,
-      emissive: color, emissiveIntensity: 0.1
-    });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.set(x * 10, z * 10 + 7, y * 10);
-    threeScene.add(body);
-
-    // Wireframe
-    const wireGeo  = new THREE.CylinderGeometry(4, 4, 14, 5);
-    const wireMat  = new THREE.MeshBasicMaterial({ color, wireframe: true, opacity: 0.3, transparent: true });
-    const wire     = new THREE.Mesh(wireGeo, wireMat);
-    wire.position.copy(body.position);
-    threeScene.add(wire);
-
-    // Implant (أسطوانة أصغر تحت)
-    const implGeo = new THREE.CylinderGeometry(1.5, 1.5, 10, 8);
-    const implMat = new THREE.MeshPhongMaterial({ color: 0x888888, shininess: 100 });
-    const impl    = new THREE.Mesh(implGeo, implMat);
-    impl.position.set(x * 10, z * 10 - 5, y * 10);
-    threeScene.add(impl);
-
-    // Label
-    const labelGeo = new THREE.SphereGeometry(2, 8, 8);
-    const labelMat = new THREE.MeshBasicMaterial({ color });
-    const label    = new THREE.Mesh(labelGeo, labelMat);
-    label.position.set(x * 10, z * 10 + 18, y * 10);
-    threeScene.add(label);
-
-    // خط من الماركر للزراعة
-    const lineMat  = new THREE.LineBasicMaterial({ color, opacity: 0.5, transparent: true });
-    const lineGeo  = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(x*10, z*10+7, y*10),
-      new THREE.Vector3(x*10, z*10-10, y*10)
-    ]);
-    threeScene.add(new THREE.Line(lineGeo, lineMat));
-  });
-
-  // لو ما في نتائج — ضع مثال
-  if (cards.length === 0) {
-    addExampleImplants();
-  }
-}
-
-function addExampleImplants() {
-  const positions = [
-    { x: -20, z: 0, y: 0, label: 'Z1' },
-    { x:   0, z: 0, y: 0, label: 'Z2' },
-    { x:  20, z: 0, y: 0, label: 'Z3' },
-  ];
-
-  positions.forEach((pos, idx) => {
-    const color = [0x00e676, 0x00d4ff, 0xffcc00][idx];
-    const geo   = new THREE.CylinderGeometry(4, 4, 14, 5);
-    const mat   = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.6 });
-    const mesh  = new THREE.Mesh(geo, mat);
-    mesh.position.set(pos.x, 7, pos.y);
-    threeScene.add(mesh);
-  });
-
-  document.getElementById('3d-info').textContent = 'مثال توضيحي — لا توجد بيانات حقيقية بعد';
-}
-
-function updateCameraPos() {
-  if (!threeCamera) return;
-  const r = spherical.radius;
-  const t = spherical.theta;
-  const p = spherical.phi;
-  threeCamera.position.set(
-    r * Math.sin(p) * Math.sin(t),
-    r * Math.cos(p),
-    r * Math.sin(p) * Math.cos(t)
-  );
-  threeCamera.lookAt(0, 0, 0);
-}
-
-function setupControls(canvas) {
-  // Touch
-  let lastTouch = null;
-
-  canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, { passive: false });
-
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    if (!lastTouch) return;
-    const dx = e.touches[0].clientX - lastTouch.x;
-    const dy = e.touches[0].clientY - lastTouch.y;
-    spherical.theta -= dx * 0.01;
-    spherical.phi    = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + dy * 0.01));
-    updateCameraPos();
-    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, { passive: false });
-
-  canvas.addEventListener('touchend', () => { lastTouch = null; });
-
-  // Double tap to reset
-  let lastTap = 0;
-  canvas.addEventListener('touchend', () => {
-    const now = Date.now();
-    if (now - lastTap < 300) {
-      spherical = { theta: 0.5, phi: 1.0, radius: 150 };
-      updateCameraPos();
-    }
-    lastTap = now;
-  });
-
-  // Mouse (للكمبيوتر)
-  canvas.addEventListener('mousedown', e => {
-    isDragging = true;
-    prevMouse  = { x: e.clientX, y: e.clientY };
-  });
-  canvas.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    const dx = e.clientX - prevMouse.x;
-    const dy = e.clientY - prevMouse.y;
-    spherical.theta -= dx * 0.01;
-    spherical.phi    = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + dy * 0.01));
-    updateCameraPos();
-    prevMouse = { x: e.clientX, y: e.clientY };
-  });
-  canvas.addEventListener('mouseup', () => { isDragging = false; });
-  canvas.addEventListener('wheel', e => {
-    spherical.radius = Math.max(50, Math.min(400, spherical.radius + e.deltaY * 0.3));
-    updateCameraPos();
-  });
-}
+let lastResults     = [];
 
 function goTo(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-
-  if (id === 's-3d') {
-    resizeThree();
-    startThreeLoop();
-  } else {
-    stopThreeLoop();
-  }
 }
 
 function changeCount(d) {
@@ -666,16 +189,46 @@ function changeCount(d) {
   document.getElementById('cnt-val').textContent = implantCount;
 }
 
-// ══ Start ══
-async function startScan() {
-  if (!detectors.length && typeof AR !== 'undefined') {
-    const dicts = ['ARUCO_MIP_36h12', 'ARUCO'];
-    detectors = dicts.map(d => {
-      try { return { name: d, det: new AR.Detector({ dictionaryName: d }) }; }
-      catch(e) { return null; }
-    }).filter(Boolean);
-  }
+function initDetectors() {
+  const dicts = ['ARUCO_MIP_36h12'];
+  detectors = dicts.map(d => {
+    try { return { name: d, det: new AR.Detector({ dictionaryName: d }) }; }
+    catch(e) { return null; }
+  }).filter(Boolean);
+  return detectors.length > 0;
+}
 
+function checkLibraryReady() {
+  const statusEl = document.getElementById('lib-status');
+  if (typeof AR !== 'undefined') {
+    if (initDetectors()) {
+      statusEl.textContent = '✓ ArUco جاهز';
+      statusEl.className   = 'lib-status ok';
+      return true;
+    }
+  }
+  return false;
+}
+
+// نفحص فوراً بدون انتظار تحميل كل الصفحة (خطوط Google قد تبطئ window.load)
+let libCheckAttempts = 0;
+const libCheckInterval = setInterval(() => {
+  libCheckAttempts++;
+  if (checkLibraryReady() || libCheckAttempts > 20) {
+    clearInterval(libCheckInterval);
+    if (libCheckAttempts > 20 && !detectors.length) {
+      const statusEl = document.getElementById('lib-status');
+      statusEl.textContent = '✗ المكتبة ما حملت — تحقق من الاتصال';
+      statusEl.className   = 'lib-status err';
+    }
+  }
+}, 250);
+
+async function startScan() {
+  if (!detectors.length && !initDetectors()) {
+    alert('المكتبة ما حملت — أعد تحميل الصفحة');
+    return;
+  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -683,7 +236,6 @@ async function startScan() {
     const video = document.getElementById('video');
     video.srcObject = stream;
     await video.play();
-
     detectedMarkers = {};
     capturedFrames  = [];
     frameCount      = 0;
@@ -699,76 +251,58 @@ function buildIndicators() {
   const cont = document.getElementById('imp-indicators');
   cont.innerHTML = '';
   for (let i = 0; i < implantCount; i++) {
-    cont.innerHTML += `<div class="imp-circle" id="imp-c-${i}">Z${i+1}</div>`;
+    cont.innerHTML += '<div class="imp-circle" id="imp-c-' + i + '">Z' + (i+1) + '</div>';
   }
 }
 
-// ══ Track Loop ══
 function trackLoop() {
   const video  = document.getElementById('video');
   const canvas = document.getElementById('overlay-canvas');
   const ctx    = canvas.getContext('2d');
-
   if (!video.videoWidth) { rafId = requestAnimationFrame(trackLoop); return; }
-
   canvas.width  = video.videoWidth;
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
-
   frameCount++;
 
   if (frameCount % 5 === 0 && detectors.length) {
     try {
       const imageData  = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const allMarkers = [];
-
-      detectors.forEach(({ det }) => {
-        try { det.detect(imageData).forEach(m => allMarkers.push(m)); }
+      detectors.forEach(function(d) {
+        try { d.det.detect(imageData).forEach(function(m) { m.dict = d.name; allMarkers.push(m); }); }
         catch(e) {}
       });
-
       const seen = new Set();
-      allMarkers.forEach(m => {
+      allMarkers.forEach(function(m) {
         seen.add(m.id);
-        if (!detectedMarkers[m.id]) {
-          detectedMarkers[m.id] = { corners: m.corners, frames: 0 };
-        }
+        if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0 };
         detectedMarkers[m.id].corners = m.corners;
         detectedMarkers[m.id].frames  = Math.min(30, detectedMarkers[m.id].frames + 1);
       });
-
-      Object.keys(detectedMarkers).forEach(id => {
+      Object.keys(detectedMarkers).forEach(function(id) {
         if (!seen.has(parseInt(id))) {
           detectedMarkers[id].frames = Math.max(0, detectedMarkers[id].frames - 2);
           if (detectedMarkers[id].frames === 0) delete detectedMarkers[id];
         }
       });
-
-      // تحديث الـ 3D preview
-      if (show3DPreview) update3DScene(detectedMarkers);
-
     } catch(e) {}
   }
 
   drawOverlay(ctx);
   updateUI();
-
-  if (capturedFrames.length < 20) {
-    capturedFrames.push(canvas.toDataURL('image/jpeg', 0.5));
-  }
-
+  if (capturedFrames.length < 30) capturedFrames.push(canvas.toDataURL('image/jpeg', 0.5));
   rafId = requestAnimationFrame(trackLoop);
 }
 
-// ══ Draw Overlay ══
 function drawOverlay(ctx) {
-  Object.entries(detectedMarkers).forEach(([id, m]) => {
+  Object.keys(detectedMarkers).forEach(function(id) {
+    const m = detectedMarkers[id];
     const confirmed = m.frames >= 15;
     const progress  = Math.min(1, m.frames / 15);
     const color     = confirmed ? '#00e676' : '#ffcc00';
     const c         = m.corners;
 
-    // مربع
     ctx.strokeStyle = color;
     ctx.lineWidth   = confirmed ? 3 : 2;
     ctx.globalAlpha = 0.5 + progress * 0.5;
@@ -781,8 +315,8 @@ function drawOverlay(ctx) {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    const cx = c.reduce((s,p) => s+p.x, 0) / 4;
-    const cy = c.reduce((s,p) => s+p.y, 0) / 4;
+    const cx = (c[0].x+c[1].x+c[2].x+c[3].x) / 4;
+    const cy = (c[0].y+c[1].y+c[2].y+c[3].y) / 4;
 
     if (!confirmed) {
       ctx.strokeStyle = '#ffcc00';
@@ -792,171 +326,168 @@ function drawOverlay(ctx) {
       ctx.stroke();
     } else {
       ctx.fillStyle = '#00e676';
-      ctx.font      = 'bold 16px monospace';
+      ctx.font      = 'bold 18px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('✓', cx, cy - 24);
     }
 
     ctx.fillStyle   = color;
-    ctx.font        = 'bold 13px monospace';
+    ctx.font        = 'bold 14px monospace';
     ctx.textAlign   = 'center';
-    ctx.globalAlpha = 0.6 + progress * 0.4;
-    ctx.fillText(`#${id}`, cx, cy + 32);
+    ctx.globalAlpha = 0.5 + progress * 0.5;
+    ctx.fillText('#' + id, cx, cy + 32);
     ctx.globalAlpha = 1;
   });
 }
 
-// ══ UI ══
 function updateUI() {
-  const confirmed = Object.values(detectedMarkers).filter(m => m.frames >= 15).length;
+  const allFrames = Object.values(detectedMarkers).map(function(m){return m.frames;});
+  const confirmed = allFrames.filter(function(f){return f >= 15;}).length;
   const total     = Object.keys(detectedMarkers).length;
 
   document.getElementById('sdot').className = confirmed >= implantCount ? 'sdot found' : 'sdot';
   document.getElementById('status-text').textContent =
-    confirmed >= implantCount ? `✓ تم تحديد ${confirmed} زراعات`
-    : total > 0 ? `مكتشف: ${total} | مؤكد: ${confirmed}/${implantCount}`
+    confirmed >= implantCount ? ('✓ تم تحديد ' + confirmed + ' زراعات')
+    : total > 0 ? ('مكتشف: ' + total + ' | مؤكد: ' + confirmed + '/' + implantCount)
     : 'جاري البحث...';
 
   const btn = document.getElementById('analyze-btn');
   if (confirmed >= implantCount) btn.classList.add('ready');
   else btn.classList.remove('ready');
 
-  const ids = Object.keys(detectedMarkers).filter(id => detectedMarkers[id].frames >= 15);
+  const ids = Object.keys(detectedMarkers).filter(function(id){return detectedMarkers[id].frames >= 15;});
   for (let i = 0; i < implantCount; i++) {
-    const el = document.getElementById(`imp-c-${i}`);
+    const el = document.getElementById('imp-c-' + i);
     if (el) el.className = ids[i] !== undefined ? 'imp-circle found' : 'imp-circle';
   }
 }
 
-// ══ Toggle 3D Preview ══
-function toggle3DPreview() {
-  show3DPreview = !show3DPreview;
-  if (show3DPreview) startThreeLoop();
-  else stopThreeLoop();
-}
+async function runAnalysis() {
+  if (rafId) cancelAnimationFrame(rafId);
+  if (stream) stream.getTracks().forEach(function(t){t.stop();});
+  goTo('s-processing');
 
-// ══ Analysis → 3D View ══
-function runAnalysis() {
-  // حساب الإحداثيات النهائية
-  const confirmed = Object.entries(detectedMarkers)
-    .filter(([,m]) => m.frames >= 15)
-    .slice(0, implantCount);
-
-  // تحديث الـ 3D scene
-  update3DScene(Object.fromEntries(confirmed));
-
-  // بناء قائمة الزراعات
-  buildImplantList(confirmed);
-
-  goTo('s-3d');
-}
-
-function buildImplantList(confirmed) {
   const canvas = document.getElementById('overlay-canvas');
   const w = canvas.width || 1280;
-  const list = document.getElementById('implant-list');
-  list.innerHTML = '';
+  const h = canvas.height || 720;
+  const scale = 80 / w;
 
-  confirmed.forEach(([id, m], idx) => {
-    const pos = getImplantPosition(m);
-    list.innerHTML += `
-      <div class="implant-item active">
-        <div>
-          <div class="imp-name">زراعة ${idx+1} — ArUco #${id}</div>
-          <div class="imp-coords">
-            X: ${pos.x.toFixed(2)}mm &nbsp;
-            Y: ${pos.y.toFixed(2)}mm &nbsp;
-            Z: ${pos.z.toFixed(2)}mm
-          </div>
-        </div>
-        <div style="color:var(--green);font-size:18px">✓</div>
-      </div>`;
+  const confirmedIds = Object.keys(detectedMarkers)
+    .filter(function(id){return detectedMarkers[id].frames >= 15;})
+    .slice(0, implantCount);
+
+  const results = confirmedIds.map(function(id, idx) {
+    const m  = detectedMarkers[id];
+    const cx = (m.corners[0].x+m.corners[1].x+m.corners[2].x+m.corners[3].x) / 4;
+    const cy = (m.corners[0].y+m.corners[1].y+m.corners[2].y+m.corners[3].y) / 4;
+    let x = ((cx - w/2) * scale).toFixed(3);
+    let y = ((cy - h/2) * scale).toFixed(3);
+    let z = '0.000';
+
+    try {
+      if (typeof POS !== 'undefined') {
+        const posit   = new POS.Posit(7.2, w);
+        const corners = m.corners.map(function(c){return {x:c.x-w/2, y:h/2-c.y};});
+        const pose    = posit.pose(corners);
+        if (pose && pose.bestError < 50) {
+          x = pose.bestTranslation[0].toFixed(3);
+          y = pose.bestTranslation[1].toFixed(3);
+          z = pose.bestTranslation[2].toFixed(3);
+        }
+      }
+    } catch(e) {}
+
+    return { id: idx+1, aruco_id: id, x: x, y: y, z: z, angle_x:'0.0', angle_y:'0.0', angle_z:'0.0', quality: Math.min(99, m.frames*4) };
   });
+
+  await new Promise(function(r){setTimeout(r, 800);});
+  showResults(results);
 }
 
-// ══ Three.js Loop ══
-function startThreeLoop() {
-  if (threeRafId) return;
-  const loop = () => {
-    threeRenderer.render(threeScene, threeCamera);
-    threeRafId = requestAnimationFrame(loop);
-  };
-  loop();
+function showResults(implants) {
+  lastResults = implants;
+  document.getElementById('res-sub').textContent = implants.length + ' زراعة مكتشفة';
+  const cont = document.getElementById('imp-cards');
+  cont.innerHTML = '';
+
+  if (!implants.length) {
+    cont.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px">ما تم اكتشاف زراعات — جرب مرة ثانية</p>';
+  } else {
+    implants.forEach(function(imp) {
+      cont.innerHTML += '\
+        <div class="imp-card">\
+          <div class="imp-card-head">\
+            <div class="imp-tag">ArUco #' + imp.aruco_id + '</div>\
+            <div class="imp-q">' + imp.quality + '%</div>\
+          </div>\
+          <div class="coords">\
+            <div class="coord"><span>X</span><span>' + imp.x + '</span></div>\
+            <div class="coord"><span>Y</span><span>' + imp.y + '</span></div>\
+            <div class="coord"><span>Z</span><span>' + imp.z + '</span></div>\
+            <div class="coord"><span>Rx</span><span>' + imp.angle_x + '</span></div>\
+            <div class="coord"><span>Ry</span><span>' + imp.angle_y + '</span></div>\
+            <div class="coord"><span>Rz</span><span>' + imp.angle_z + '</span></div>\
+          </div>\
+        </div>';
+    });
+  }
+  goTo('s-results');
 }
 
-function stopThreeLoop() {
-  if (threeRafId) { cancelAnimationFrame(threeRafId); threeRafId = null; }
-}
-
-// ══ Stop / Export / New ══
 function stopScan() {
   if (rafId) cancelAnimationFrame(rafId);
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  stopThreeLoop();
+  if (stream) stream.getTracks().forEach(function(t){t.stop();});
   goTo('s-start');
 }
 
 function exportCSV() {
-  const canvas = document.getElementById('overlay-canvas');
-  const rows   = ['Implant,ArUco_ID,X_mm,Y_mm,Z_mm'];
-
-  const confirmed = Object.entries(detectedMarkers)
-    .filter(([,m]) => m.frames >= 15)
-    .slice(0, implantCount);
-
-  confirmed.forEach(([id, m], idx) => {
-    const pos = getImplantPosition(m);
-    rows.push(`Z-${String(idx+1).padStart(2,'0')},${id},${pos.x.toFixed(3)},${pos.y.toFixed(3)},${pos.z.toFixed(3)}`);
+  const rows = ['Implant,ArUco_ID,X,Y,Z'];
+  lastResults.forEach(function(imp, i) {
+    rows.push('Z' + (i+1) + ',' + imp.aruco_id + ',' + imp.x + ',' + imp.y + ',' + imp.z);
   });
-
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
-  a.download = `ImplantScan_${Date.now()}.csv`;
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download = 'ImplantScan_' + Date.now() + '.csv';
   a.click();
 }
 
+function newScan() {
+  detectedMarkers = {};
+  capturedFrames  = [];
+  goTo('s-start');
+}
 
-// ══ 3D VIEW ══
-let scene3d, camera3d, renderer3d, implantMeshes = [];
+let scene3d, camera3d, renderer3d;
+let orbitState = { rotX: 0.3, rotY: 0 };
 
 function init3D() {
   const container = document.getElementById('three-container');
   container.innerHTML = '';
-
   scene3d = new THREE.Scene();
   scene3d.background = new THREE.Color(0x080c10);
 
   const w = container.clientWidth  || window.innerWidth;
-  const h = container.clientHeight || window.innerHeight - 150;
+  const h = container.clientHeight || (window.innerHeight - 100);
 
   camera3d = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
-  camera3d.position.set(0, -40, 30);
-  camera3d.lookAt(0, 0, 0);
-
   renderer3d = new THREE.WebGLRenderer({ antialias: true });
   renderer3d.setSize(w, h);
   container.appendChild(renderer3d.domElement);
 
-  // إضاءة
-  const ambient = new THREE.AmbientLight(0x404040, 1.5);
-  scene3d.add(ambient);
+  scene3d.add(new THREE.AmbientLight(0x404040, 1.5));
   const dirLight = new THREE.DirectionalLight(0x00d4ff, 0.8);
   dirLight.position.set(10, 10, 10);
   scene3d.add(dirLight);
 
-  // أرضية شبكية (تمثل اللثة)
   const grid = new THREE.GridHelper(60, 20, 0x1a2a3a, 0x1a2a3a);
   grid.rotation.x = Math.PI / 2;
   scene3d.add(grid);
+  scene3d.add(new THREE.AxesHelper(15));
 
-  // محاور مرجعية
-  const axesHelper = new THREE.AxesHelper(15);
-  scene3d.add(axesHelper);
+  orbitState = { rotX: 0.3, rotY: 0 };
+  updateCameraOrbit();
 
-  // touch/mouse rotation
   let isDragging = false, prevX = 0, prevY = 0;
-  let rotX = 0.3, rotY = 0;
-
   function onStart(e) {
     isDragging = true;
     const p = e.touches ? e.touches[0] : e;
@@ -965,22 +496,12 @@ function init3D() {
   function onMove(e) {
     if (!isDragging) return;
     const p = e.touches ? e.touches[0] : e;
-    const dx = p.clientX - prevX;
-    const dy = p.clientY - prevY;
-    rotY += dx * 0.01;
-    rotX += dy * 0.01;
+    orbitState.rotY += (p.clientX - prevX) * 0.01;
+    orbitState.rotX += (p.clientY - prevY) * 0.01;
     prevX = p.clientX; prevY = p.clientY;
     updateCameraOrbit();
   }
   function onEnd() { isDragging = false; }
-
-  function updateCameraOrbit() {
-    const radius = 50;
-    camera3d.position.x = radius * Math.sin(rotY) * Math.cos(rotX);
-    camera3d.position.y = -radius * Math.cos(rotY) * Math.cos(rotX);
-    camera3d.position.z = radius * Math.sin(rotX) + 20;
-    camera3d.lookAt(0, 0, 0);
-  }
 
   renderer3d.domElement.addEventListener('mousedown', onStart);
   renderer3d.domElement.addEventListener('mousemove', onMove);
@@ -989,8 +510,15 @@ function init3D() {
   renderer3d.domElement.addEventListener('touchmove', onMove);
   renderer3d.domElement.addEventListener('touchend', onEnd);
 
-  updateCameraOrbit();
   animate3D();
+}
+
+function updateCameraOrbit() {
+  const radius = 50;
+  camera3d.position.x = radius * Math.sin(orbitState.rotY) * Math.cos(orbitState.rotX);
+  camera3d.position.y = -radius * Math.cos(orbitState.rotY) * Math.cos(orbitState.rotX);
+  camera3d.position.z = radius * Math.sin(orbitState.rotX) + 20;
+  camera3d.lookAt(0, 0, 0);
 }
 
 function animate3D() {
@@ -999,98 +527,57 @@ function animate3D() {
   renderer3d.render(scene3d, camera3d);
 }
 
-function addImplantsToScene(implants) {
-  // نظف الزراعات القديمة
-  implantMeshes.forEach(m => scene3d.remove(m));
-  implantMeshes = [];
-
-  implants.forEach((imp, idx) => {
+function addImplantsToScene() {
+  lastResults.forEach(function(imp, idx) {
     const x = parseFloat(imp.x) || 0;
     const y = parseFloat(imp.y) || 0;
     const z = parseFloat(imp.z) || 0;
-
-    // مجموعة تمثل الزراعة + الماركر
     const group = new THREE.Group();
 
-    // جسم الزراعة (أسطوانة)
-    const implantGeo = new THREE.CylinderGeometry(1.5, 1.2, 10, 16);
-    const implantMat  = new THREE.MeshStandardMaterial({
-      color: 0x00d4ff,
-      metalness: 0.6,
-      roughness: 0.3
-    });
-    const implantMesh = new THREE.Mesh(implantGeo, implantMat);
+    const implantMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 1.2, 10, 16),
+      new THREE.MeshStandardMaterial({ color: 0x00d4ff, metalness: 0.6, roughness: 0.3 })
+    );
     implantMesh.rotation.x = Math.PI / 2;
     group.add(implantMesh);
 
-    // نقطة مركزية (الماركر)
-    const markerGeo = new THREE.SphereGeometry(0.8, 16, 16);
-    const markerMat  = new THREE.MeshStandardMaterial({
-      color: 0x00e676,
-      emissive: 0x00e676,
-      emissiveIntensity: 0.3
-    });
-    const markerMesh = new THREE.Mesh(markerGeo, markerMat);
+    const markerMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.8, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0x00e676, emissive: 0x00e676, emissiveIntensity: 0.3 })
+    );
     markerMesh.position.z = 7;
     group.add(markerMesh);
 
-    // label (sprite بسيط)
     const canvas = document.createElement('canvas');
     canvas.width = 128; canvas.height = 64;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#00e676';
     ctx.font = 'bold 32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`Z${idx+1}`, 64, 40);
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMat = new THREE.SpriteMaterial({ map: texture });
-    const sprite = new THREE.Sprite(spriteMat);
+    ctx.fillText('Z' + (idx+1), 64, 40);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
     sprite.scale.set(6, 3, 1);
     sprite.position.z = 12;
     group.add(sprite);
 
     group.position.set(x, y, z);
     scene3d.add(group);
-    implantMeshes.push(group);
   });
 
-  // رسم خطوط الاتصال بين الزراعات (تمثل القوس)
-  if (implants.length > 1) {
-    const points = implants.map(imp =>
-      new THREE.Vector3(parseFloat(imp.x)||0, parseFloat(imp.y)||0, parseFloat(imp.z)||0)
-    );
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-    const lineMat = new THREE.LineDashedMaterial({
-      color: 0x3d5a6e, dashSize: 1, gapSize: 0.5
+  if (lastResults.length > 1) {
+    const points = lastResults.map(function(imp){
+      return new THREE.Vector3(parseFloat(imp.x)||0, parseFloat(imp.y)||0, parseFloat(imp.z)||0);
     });
-    const line = new THREE.Line(lineGeo, lineMat);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({ color: 0x3d5a6e, dashSize: 1, gapSize: 0.5 }));
     line.computeLineDistances();
     scene3d.add(line);
-    implantMeshes.push(line);
   }
 }
 
-function show3DView(implants) {
+function show3DView() {
   goTo('s-3d');
-  setTimeout(() => {
-    init3D();
-    addImplantsToScene(implants);
-  }, 100);
-}
-
-function newScan() {
-  detectedMarkers = {};
-  capturedFrames  = [];
-  frameCount      = 0;
-
-  // حذف الـ meshes
-  Object.values(implantMeshes).forEach(({ group }) => threeScene.remove(group));
-  implantMeshes = {};
-
-  if (rafId) cancelAnimationFrame(rafId);
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  stopThreeLoop();
-  goTo('s-start');
+  setTimeout(function() { init3D(); addImplantsToScene(); }, 100);
 }
 </script>
 </body>
