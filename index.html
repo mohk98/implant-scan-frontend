@@ -194,9 +194,26 @@ function changeCount(d) {
   document.getElementById('cnt-val').textContent = implantCount;
 }
 
+// قاموس مخصص لمشروعنا — 4×4 بيانات + حد أسود = 6×6 إجمالي
+// 10 أكواد بأقل مسافة Hamming = 6 (آمنة من التداخل)
+// نفس حجم الـ engraving المصمم بالفيوجن (v22) بدون أي تغيير بالأبعاد
+function registerImplantScanDictionary() {
+  if (typeof AR === 'undefined') return false;
+  AR.DICTIONARIES.IMPLANTSCAN = {
+    nBits: 16,
+    tau: 6,
+    codeList: [
+      0x6dd9, 0x9072, 0xc7e0, 0x257f, 0x553c,
+      0xebbb, 0x4121, 0x0617, 0xb8f9, 0xb793
+    ]
+  };
+  return true;
+}
+
 function initDetectors() {
-  // نجرب عدة أسماء محتملة للـ dictionary (الاختلاف بين المكتبات)
-  const candidateNames = ['ARUCO_4X4_1000', 'ARUCO_MIP_36h12', 'ARUCO'];
+  registerImplantScanDictionary();
+  // قاموسنا المخصص أولاً، والقواميس القياسية كـ fallback
+  const candidateNames = ['IMPLANTSCAN', 'ARUCO', 'ARUCO_MIP_36h12'];
   const dicts = [];
   candidateNames.forEach(function(n) {
     if (AR.DICTIONARIES && AR.DICTIONARIES[n]) dicts.push(n);
