@@ -175,6 +175,28 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 // أي ID خارج هذا النطاق = false positive (نقش عشوائي شابه نمط ArUco صدفة)
 const VALID_IDS = new Set([0,1,2,3,4,5,6,7,8,9]);
 
+// فلتر هندسي: يتحقق إن الـ 4 نقاط تشكل تقريباً مربع منتظم
+// (الماركر الحقيقي مربع، بعكس مفاتيح الكيبورد أو واجهات البرامج اللي غالباً مستطيلة)
+function isValidSquareShape(corners) {
+  if (!corners || corners.length !== 4) return false;
+  const dist = function(a, b) {
+    return Math.sqrt(Math.pow(a.x-b.x,2) + Math.pow(a.y-b.y,2));
+  };
+  const sides = [
+    dist(corners[0], corners[1]),
+    dist(corners[1], corners[2]),
+    dist(corners[2], corners[3]),
+    dist(corners[3], corners[0])
+  ];
+  const minSide = Math.min(...sides);
+  const maxSide = Math.max(...sides);
+  if (minSide < 15) return false; // صغير جداً = غالباً ضوضاء
+  // نسبة أكبر ضلع لأصغر ضلع — المربع المثالي = 1.0
+  // نسمح بتفاوت بسيط بسبب زاوية التصوير (perspective) لكن نرفض المستطيلات الواضحة
+  const ratio = maxSide / minSide;
+  return ratio <= 1.35;
+}
+
 let implantCount    = 2;
 let stream          = null;
 let rafId           = null;
@@ -201,7 +223,7 @@ function registerImplantScanDictionary() {
   if (typeof AR === 'undefined') return false;
   AR.DICTIONARIES.IMPLANTSCAN = {
     nBits: 16,
-    tau: 1,
+    tau: 0,
     codeList: [
       0x6dd9, 0x9072, 0xc7e0, 0x257f, 0x553c,
       0xebbb, 0x4121, 0x0617, 0xb8f9, 0xb793
@@ -311,6 +333,10 @@ function trackLoop() {
       allMarkers.forEach(function(m) {
         // نقبل فقط الـ IDs اللي طبعناها فعلياً (0-9) — أي شي ثاني = false positive
         if (!VALID_IDS.has(m.id)) return;
+
+        // فلتر هندسي: الماركر الحقيقي مربّع منتظم — نرفض الأشكال المستطيلة
+        // (زي مفاتيح الكيبورد) اللي نسبة أضلاعها بعيدة عن 1:1
+        if (!isValidSquareShape(m.corners)) return;
 
         seen.add(m.id);
         if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0, locked: false };
