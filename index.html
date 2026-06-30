@@ -130,6 +130,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
       </div>
       <div class="imp-indicators" id="imp-indicators"></div>
       <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">تحليل المواضع ←</button>
+      <button class="btn-cancel" onclick="resetDetection()" style="margin-top:4px">↺ إعادة تعيين</button>
     </div>
   </div>
 </div>
@@ -255,6 +256,12 @@ function buildIndicators() {
   }
 }
 
+function resetDetection() {
+  detectedMarkers = {};
+  capturedFrames  = [];
+  buildIndicators();
+}
+
 function trackLoop() {
   const video  = document.getElementById('video');
   const canvas = document.getElementById('overlay-canvas');
@@ -276,12 +283,21 @@ function trackLoop() {
       const seen = new Set();
       allMarkers.forEach(function(m) {
         seen.add(m.id);
-        if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0 };
+        if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0, locked: false };
+        // نحدث الموضع فقط إذا لسه ما تأكدت، أو لو تأكدت نحدث الموضع الأخير المعروف
         detectedMarkers[m.id].corners = m.corners;
-        detectedMarkers[m.id].frames  = Math.min(30, detectedMarkers[m.id].frames + 1);
+        if (!detectedMarkers[m.id].locked) {
+          detectedMarkers[m.id].frames = Math.min(30, detectedMarkers[m.id].frames + 1);
+          if (detectedMarkers[m.id].frames >= 15) {
+            detectedMarkers[m.id].locked = true;
+            if (navigator.vibrate) navigator.vibrate([40, 20, 80]);
+          }
+        }
       });
+      // الماركرات الملقّاة (locked) تبقى محفوظة حتى لو خرجت من الكادر
+      // الماركرات غير المؤكدة فقط تتلاشى إذا غابت
       Object.keys(detectedMarkers).forEach(function(id) {
-        if (!seen.has(parseInt(id))) {
+        if (!seen.has(parseInt(id)) && !detectedMarkers[id].locked) {
           detectedMarkers[id].frames = Math.max(0, detectedMarkers[id].frames - 2);
           if (detectedMarkers[id].frames === 0) delete detectedMarkers[id];
         }
@@ -298,7 +314,7 @@ function trackLoop() {
 function drawOverlay(ctx) {
   Object.keys(detectedMarkers).forEach(function(id) {
     const m = detectedMarkers[id];
-    const confirmed = m.frames >= 15;
+    const confirmed = m.locked;
     const progress  = Math.min(1, m.frames / 15);
     const color     = confirmed ? '#00e676' : '#ffcc00';
     const c         = m.corners;
@@ -342,7 +358,7 @@ function drawOverlay(ctx) {
 
 function updateUI() {
   const allFrames = Object.values(detectedMarkers).map(function(m){return m.frames;});
-  const confirmed = allFrames.filter(function(f){return f >= 15;}).length;
+  const confirmed = Object.values(detectedMarkers).filter(function(m){return m.locked;}).length;
   const total     = Object.keys(detectedMarkers).length;
 
   document.getElementById('sdot').className = confirmed >= implantCount ? 'sdot found' : 'sdot';
@@ -355,7 +371,7 @@ function updateUI() {
   if (confirmed >= implantCount) btn.classList.add('ready');
   else btn.classList.remove('ready');
 
-  const ids = Object.keys(detectedMarkers).filter(function(id){return detectedMarkers[id].frames >= 15;});
+  const ids = Object.keys(detectedMarkers).filter(function(id){return detectedMarkers[id].locked;});
   for (let i = 0; i < implantCount; i++) {
     const el = document.getElementById('imp-c-' + i);
     if (el) el.className = ids[i] !== undefined ? 'imp-circle found' : 'imp-circle';
@@ -373,7 +389,7 @@ async function runAnalysis() {
   const scale = 80 / w;
 
   const confirmedIds = Object.keys(detectedMarkers)
-    .filter(function(id){return detectedMarkers[id].frames >= 15;})
+    .filter(function(id){return detectedMarkers[id].locked;})
     .slice(0, implantCount);
 
   const results = confirmedIds.map(function(id, idx) {
@@ -575,9 +591,36 @@ function addImplantsToScene() {
   }
 }
 
+let threeLoadPromise = null;
+function loadThreeJS() {
+  if (typeof THREE !== 'undefined') return Promise.resolve();
+  if (threeLoadPromise) return threeLoadPromise;
+  threeLoadPromise = new Promise(function(resolve, reject) {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+    s.onload  = resolve;
+    s.onerror = function(){ reject(new Error('تعذر تحميل مكتبة العرض ثلاثي الأبعاد')); };
+    document.head.appendChild(s);
+  });
+  return threeLoadPromise;
+}
+
 function show3DView() {
+  if (!lastResults.length) {
+    alert('لا توجد نتائج بعد — أكمل التحليل أول');
+    return;
+  }
   goTo('s-3d');
-  setTimeout(function() { init3D(); addImplantsToScene(); }, 100);
+  const container = document.getElementById('three-container');
+  container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:60px 20px">جاري تحميل العرض ثلاثي الأبعاد...</p>';
+
+  loadThreeJS().then(function() {
+    container.innerHTML = '';
+    init3D();
+    addImplantsToScene();
+  }).catch(function(e) {
+    container.innerHTML = '<p style="color:#ff4444;text-align:center;padding:60px 20px">' + e.message + '<br><br>تحقق من الاتصال بالإنترنت</p>';
+  });
 }
 </script>
 </body>
