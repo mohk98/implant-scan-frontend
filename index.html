@@ -195,7 +195,13 @@ function changeCount(d) {
 }
 
 function initDetectors() {
-  const dicts = ['ARUCO_MIP_36h12'];
+  // نجرب عدة أسماء محتملة للـ dictionary (الاختلاف بين المكتبات)
+  const candidateNames = ['ARUCO_4X4_1000', 'ARUCO_MIP_36h12', 'ARUCO'];
+  const dicts = [];
+  candidateNames.forEach(function(n) {
+    if (AR.DICTIONARIES && AR.DICTIONARIES[n]) dicts.push(n);
+  });
+  if (!dicts.length) dicts.push('ARUCO'); // fallback أخير
   detectors = dicts.map(d => {
     try { return { name: d, det: new AR.Detector({ dictionaryName: d }) }; }
     catch(e) { return null; }
@@ -207,7 +213,7 @@ function checkLibraryReady() {
   const statusEl = document.getElementById('lib-status');
   if (typeof AR !== 'undefined') {
     if (initDetectors()) {
-      statusEl.textContent = '✓ ArUco جاهز';
+      statusEl.textContent = '✓ ArUco جاهز (' + detectors.map(function(d){return d.name;}).join(', ') + ')';
       statusEl.className   = 'lib-status ok';
       return true;
     }
