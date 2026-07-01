@@ -549,12 +549,13 @@ function newScan() {
   goTo('s-start');
 }
 
-let scene3d, camera3d, renderer3d;
+let scene3d, camera3d, renderer3d, implantMeshes = [];
 let orbitState = { rotX: 0.3, rotY: 0 };
 
 function init3D() {
   const container = document.getElementById('three-container');
   container.innerHTML = '';
+  implantMeshes = [];
   scene3d = new THREE.Scene();
   scene3d.background = new THREE.Color(0x080c10);
 
