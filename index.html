@@ -477,7 +477,6 @@ async function runAnalysis() {
           // استخراج الزوايا من rotation matrix
           const R = pose.bestRotation;
           if (R) {
-            // Euler angles (degrees) من rotation matrix
             const rx = Math.atan2(R[2][1], R[2][2]) * 180/Math.PI;
             const ry = Math.atan2(-R[2][0], Math.sqrt(R[2][1]*R[2][1]+R[2][2]*R[2][2])) * 180/Math.PI;
             const rz = Math.atan2(R[1][0], R[0][0]) * 180/Math.PI;
@@ -489,7 +488,9 @@ async function runAnalysis() {
       }
     } catch(e) { console.warn('Pose estimation error:', e); }
 
-    return { id: idx+1, aruco_id: id, x: x, y: y, z: z, angle_x: ax, angle_y: ay, angle_z: az, quality: Math.min(99, m.frames*4) };
+    return { id: idx+1, aruco_id: id, x: x, y: y, z: z,
+             angle_x: ax, angle_y: ay, angle_z: az,
+             quality: Math.min(99, m.frames*4) };
   });
 
   await new Promise(function(r){setTimeout(r, 800);});
@@ -568,12 +569,12 @@ function init3D() {
   renderer3d.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer3d.domElement);
 
-  // إضاءة تعطي ظلال وعمق
-  scene3d.add(new THREE.AmbientLight(0xffffff, 0.5));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  // إضاءة متوازنة — ambient قوي يمنع السواد + directional خفيف للعمق
+  scene3d.add(new THREE.AmbientLight(0xffffff, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.5);
   sun.position.set(30, -20, 60);
   scene3d.add(sun);
-  const fill = new THREE.DirectionalLight(0x8899bb, 0.4);
+  const fill = new THREE.DirectionalLight(0x99aacc, 0.3);
   fill.position.set(-30, 30, 10);
   scene3d.add(fill);
 
@@ -719,6 +720,9 @@ function addImplantsToScene() {
     const rz = parseFloat(imp.angle_z) * Math.PI / 180 || 0;
 
     const group = new THREE.Group();
+    group.position.set(x, y, z);
+    // نطبق الزاوية الحقيقية من الـ pose estimation
+    group.rotation.set(rx, ry, rz, 'XYZ');
 
     if (markerGeo) {
       // مادة مع استجابة للإضاءة = تعطي ظلال وعمق
