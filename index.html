@@ -116,6 +116,10 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
     </div>
   </div>
   <button class="btn-main" onclick="startScan()">ابدأ الفحص</button>
+  <button onclick="startCalib()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:10px 24px;border-radius:20px;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:13px;cursor:pointer;width:100%;max-width:280px">
+    ⚙️ معايرة الكاميرا
+    <span id="calib-badge" style="color:var(--green);font-size:11px;display:none"> ✓ مُعايَر</span>
+  </button>
 </div>
 
 <div class="screen" id="s-scan">
@@ -209,6 +213,147 @@ let detectedMarkers = {};
 let capturedFrames  = [];
 let frameCount      = 0;
 let lastResults     = [];
+
+
+// ══ CALIBRATION ══
+let calibStream = null;
+let calibRafId  = null;
+let calibFocal  = null;
+let detectedCalibSize = null;
+
+function startCalib() {
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+  }).then(function(s) {
+    calibStream = s;
+    const video = document.getElementById('calib-video');
+    video.srcObject = s;
+    video.play();
+    goTo('s-calib');
+    calibRafId = requestAnimationFrame(calibLoop);
+    checkCalibBadge();
+  }).catch(function(e) { alert('تعذر فتح الكاميرا'); });
+}
+
+function stopCalib() {
+  if (calibRafId) cancelAnimationFrame(calibRafId);
+  if (calibStream) calibStream.getTracks().forEach(function(t){ t.stop(); });
+  calibStream = null;
+  goTo('s-start');
+}
+
+function calibLoop() {
+  const video  = document.getElementById('calib-video');
+  const canvas = document.getElementById('calib-canvas');
+  const ctx    = canvas.getContext('2d');
+  if (!video.videoWidth) { calibRafId = requestAnimationFrame(calibLoop); return; }
+
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0);
+
+  // كشف الماركر
+  if (detectors.length) {
+    try {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let found = null;
+      detectors.forEach(function(d) {
+        if (!found) {
+          const markers = d.det.detect(imageData);
+          if (markers.length > 0 && VALID_IDS.has(markers[0].id) && isValidSquareShape(markers[0].corners)) {
+            found = markers[0];
+          }
+        }
+      });
+
+      if (found) {
+        const c = found.corners;
+        // حجم الماركر بالبكسل (متوسط أطوال الأضلاع الأربعة)
+        const sides = [
+          Math.hypot(c[1].x-c[0].x, c[1].y-c[0].y),
+          Math.hypot(c[2].x-c[1].x, c[2].y-c[1].y),
+          Math.hypot(c[3].x-c[2].x, c[3].y-c[2].y),
+          Math.hypot(c[0].x-c[3].x, c[0].y-c[3].y),
+        ];
+        detectedCalibSize = sides.reduce(function(a,b){return a+b;}) / 4;
+
+        // ارسم مربع حول الماركر
+        ctx.strokeStyle = '#00e676';
+        ctx.lineWidth   = 3;
+        ctx.beginPath();
+        ctx.moveTo(c[0].x, c[0].y);
+        ctx.lineTo(c[1].x, c[1].y);
+        ctx.lineTo(c[2].x, c[2].y);
+        ctx.lineTo(c[3].x, c[3].y);
+        ctx.closePath();
+        ctx.stroke();
+
+        // حجم الماركر بالبكسل والـ focal المحسوب
+        const dist = parseFloat(document.getElementById('calib-dist').value) || 100;
+        const fEst = detectedCalibSize * dist / 8.0;
+
+        document.getElementById('calib-dot').className    = 'sdot found';
+        document.getElementById('calib-status').textContent = `✓ ماركر مكتشف — f≈${Math.round(fEst)}px`;
+        document.getElementById('calib-confirm-btn').style.opacity = '1';
+        document.getElementById('calib-confirm-btn').style.pointerEvents = 'all';
+      } else {
+        detectedCalibSize = null;
+        document.getElementById('calib-dot').className    = 'sdot';
+        document.getElementById('calib-status').textContent = 'جاري البحث عن ماركر...';
+        document.getElementById('calib-confirm-btn').style.opacity = '0';
+        document.getElementById('calib-confirm-btn').style.pointerEvents = 'none';
+      }
+    } catch(e) {}
+  }
+
+  calibRafId = requestAnimationFrame(calibLoop);
+}
+
+function confirmCalib() {
+  if (!detectedCalibSize) return;
+  const dist   = parseFloat(document.getElementById('calib-dist').value) || 100;
+  calibFocal   = detectedCalibSize * dist / 8.0;
+
+  // نحفظ في localStorage
+  try {
+    localStorage.setItem('implant_focal_length', calibFocal.toString());
+    localStorage.setItem('implant_calib_date', new Date().toLocaleDateString('ar'));
+  } catch(e) {}
+
+  if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
+  alert('✅ الكالبريشن تم بنجاح!\n\nFocal Length: ' + Math.round(calibFocal) + 'px\nالمسافة: ' + dist + 'mm');
+  stopCalib();
+  checkCalibBadge();
+}
+
+function loadCalibration() {
+  try {
+    const saved = localStorage.getItem('implant_focal_length');
+    if (saved) {
+      calibFocal = parseFloat(saved);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function checkCalibBadge() {
+  const badge = document.getElementById('calib-badge');
+  if (badge) {
+    const saved = localStorage.getItem('implant_focal_length');
+    badge.style.display = saved ? 'inline' : 'none';
+    if (saved) {
+      const date = localStorage.getItem('implant_calib_date') || '';
+      badge.textContent = ' ✓ مُعايَر ' + date;
+    }
+  }
+}
+
+// تحميل الكالبريشن عند فتح التطبيق
+window.addEventListener('load', function() {
+  loadCalibration();
+  checkCalibBadge();
+});
 
 function goTo(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -478,7 +623,8 @@ async function runAnalysis() {
     try {
       if (typeof POS !== 'undefined') {
         // Focal length أدق للآيباد — horizontal FOV ~75° → f ≈ w/1.43
-        const FOCAL = w / Math.tan(37.5 * Math.PI / 180) / 2;
+        // نستخدم الـ focal المعاير لو متوفر، وإلا نقدر من حجم الآيباد
+        const FOCAL = calibFocal || (w / Math.tan(37.5 * Math.PI / 180) / 2);
         const posit = new POS.Posit(8.0, FOCAL);
         const corners = m.corners.map(function(c){
           return { x: c.x - w/2, y: h/2 - c.y };
