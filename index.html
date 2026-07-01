@@ -550,7 +550,7 @@ function newScan() {
 }
 
 let scene3d, camera3d, renderer3d, implantMeshes = [];
-let orbitState = { rotX: 0.4, rotY: 0, zoom: 80, lastDist: 0 };
+let orbitState = { azimuth: 0, elevation: 0.4, zoom: 80, lastDist: 0 };
 
 function init3D() {
   const container = document.getElementById('three-container');
@@ -587,10 +587,12 @@ function init3D() {
   scene3d.add(grid);
   scene3d.add(new THREE.AxesHelper(15));
 
-  orbitState = { rotX: 0.4, rotY: 0, zoom: 80, lastDist: 0 };
+  orbitState = { azimuth: 0, elevation: 0.4, zoom: 80, lastDist: 0 };
   updateCameraOrbit();
 
-  // تحكم أفضل — حساسية أقل + pinch zoom
+  // تحكم بسيط وطبيعي
+  // drag أفقي = دوران حول المحور العمودي (Z)
+  // drag عمودي = تغيير ارتفاع الكاميرا
   let isDragging = false, prevX = 0, prevY = 0;
 
   function getTouchDist(e) {
@@ -613,7 +615,6 @@ function init3D() {
     e.preventDefault();
     if (!isDragging) return;
 
-    // Pinch zoom
     if (e.touches && e.touches.length === 2) {
       const dist = getTouchDist(e);
       orbitState.zoom *= orbitState.lastDist / dist;
@@ -626,16 +627,17 @@ function init3D() {
     const p = e.touches ? e.touches[0] : e;
     const dx = p.clientX - prevX;
     const dy = p.clientY - prevY;
-    orbitState.rotY += dx * 0.005;   // حساسية أقل
-    orbitState.rotX += dy * 0.005;
-    orbitState.rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, orbitState.rotX));
+
+    orbitState.azimuth += dx * 0.004;   // يسار/يمين = دوران أفقي
+    orbitState.elevation -= dy * 0.004;  // فوق/تحت = ارتفاع الكاميرا
+    orbitState.elevation = Math.max(-1.4, Math.min(1.4, orbitState.elevation));
+
     prevX = p.clientX; prevY = p.clientY;
     updateCameraOrbit();
   }
 
   function onEnd() { isDragging = false; }
 
-  // scroll to zoom (desktop)
   renderer3d.domElement.addEventListener('wheel', function(e) {
     orbitState.zoom += e.deltaY * 0.1;
     orbitState.zoom = Math.max(20, Math.min(200, orbitState.zoom));
@@ -653,10 +655,14 @@ function init3D() {
 }
 
 function updateCameraOrbit() {
-  const r = orbitState.zoom || 80;
-  camera3d.position.x = r * Math.sin(orbitState.rotY) * Math.cos(orbitState.rotX);
-  camera3d.position.y = -r * Math.cos(orbitState.rotY) * Math.cos(orbitState.rotX);
-  camera3d.position.z = r * Math.sin(orbitState.rotX) + 10;
+  const r   = orbitState.zoom || 80;
+  const az  = orbitState.azimuth   || 0;
+  const el  = orbitState.elevation || 0.4;
+  // spherical to cartesian (Z-up)
+  camera3d.position.x = r * Math.cos(el) * Math.sin(az);
+  camera3d.position.y = r * Math.cos(el) * Math.cos(az);
+  camera3d.position.z = r * Math.sin(el);
+  camera3d.up.set(0, 0, 1);
   camera3d.lookAt(0, 0, 0);
 }
 
@@ -722,16 +728,19 @@ function addImplantsToScene() {
     const group = new THREE.Group();
 
     if (markerGeo) {
-      // مادة تظهر ألوان الـ STL بوضوح
-      const mat  = new THREE.MeshPhongMaterial({
-        color:     0xd0d0d0,
-        specular:  0x444444,
-        shininess: 30,
-        side:      THREE.DoubleSide,
+      // فضي واضح — MeshBasicMaterial ما يحتاج إضاءة
+      const mat  = new THREE.MeshBasicMaterial({
+        color: 0xc8c8c8,
+        side:  THREE.DoubleSide,
+        wireframe: false,
       });
       const mesh = new THREE.Mesh(markerGeo, mat);
-      mesh.scale.set(1, 1, 1);  // الحجم الأصلي بالـ mm
       group.add(mesh);
+
+      // أضف wireframe خفيف فوق المادة لإبراز الحواف
+      const wireMat  = new THREE.MeshBasicMaterial({ color: 0x555555, wireframe: true, opacity: 0.15, transparent: true });
+      const wireMesh = new THREE.Mesh(markerGeo, wireMat);
+      group.add(wireMesh);
     } else {
       // fallback لو ما حمّل الـ STL
       const mesh = new THREE.Mesh(
