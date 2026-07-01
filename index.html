@@ -550,67 +550,113 @@ function newScan() {
 }
 
 let scene3d, camera3d, renderer3d, implantMeshes = [];
-let orbitState = { rotX: 0.3, rotY: 0 };
+let orbitState = { rotX: 0.4, rotY: 0, zoom: 80, lastDist: 0 };
 
 function init3D() {
   const container = document.getElementById('three-container');
   container.innerHTML = '';
   implantMeshes = [];
   scene3d = new THREE.Scene();
-  scene3d.background = new THREE.Color(0x080c10);
+  scene3d.background = new THREE.Color(0x0a0f1a);
 
   const w = container.clientWidth  || window.innerWidth;
   const h = container.clientHeight || (window.innerHeight - 100);
 
-  camera3d = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
+  camera3d = new THREE.PerspectiveCamera(45, w / h, 0.1, 2000);
   renderer3d = new THREE.WebGLRenderer({ antialias: true });
   renderer3d.setSize(w, h);
+  renderer3d.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer3d.domElement);
 
-  scene3d.add(new THREE.AmbientLight(0x404040, 1.5));
-  const dirLight = new THREE.DirectionalLight(0x00d4ff, 0.8);
-  dirLight.position.set(10, 10, 10);
-  scene3d.add(dirLight);
+  // إضاءة قوية من كل الاتجاهات لمنع السواد
+  scene3d.add(new THREE.AmbientLight(0xffffff, 1.2));
+  const lights = [
+    [50, 50, 50, 0xffffff, 1.0],
+    [-50, -50, 50, 0xffffff, 0.8],
+    [0, 0, 80, 0x00d4ff, 0.5],
+    [50, -50, -50, 0xffffff, 0.4],
+  ];
+  lights.forEach(function(l) {
+    const dl = new THREE.DirectionalLight(l[3], l[4]);
+    dl.position.set(l[0], l[1], l[2]);
+    scene3d.add(dl);
+  });
 
-  const grid = new THREE.GridHelper(60, 20, 0x1a2a3a, 0x1a2a3a);
+  const grid = new THREE.GridHelper(100, 20, 0x1a2a3a, 0x1a2a3a);
   grid.rotation.x = Math.PI / 2;
   scene3d.add(grid);
   scene3d.add(new THREE.AxesHelper(15));
 
-  orbitState = { rotX: 0.3, rotY: 0 };
+  orbitState = { rotX: 0.4, rotY: 0, zoom: 80, lastDist: 0 };
   updateCameraOrbit();
 
+  // تحكم أفضل — حساسية أقل + pinch zoom
   let isDragging = false, prevX = 0, prevY = 0;
+
+  function getTouchDist(e) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
   function onStart(e) {
+    e.preventDefault();
     isDragging = true;
     const p = e.touches ? e.touches[0] : e;
     prevX = p.clientX; prevY = p.clientY;
+    if (e.touches && e.touches.length === 2) {
+      orbitState.lastDist = getTouchDist(e);
+    }
   }
+
   function onMove(e) {
+    e.preventDefault();
     if (!isDragging) return;
+
+    // Pinch zoom
+    if (e.touches && e.touches.length === 2) {
+      const dist = getTouchDist(e);
+      orbitState.zoom *= orbitState.lastDist / dist;
+      orbitState.zoom = Math.max(20, Math.min(200, orbitState.zoom));
+      orbitState.lastDist = dist;
+      updateCameraOrbit();
+      return;
+    }
+
     const p = e.touches ? e.touches[0] : e;
-    orbitState.rotY += (p.clientX - prevX) * 0.01;
-    orbitState.rotX += (p.clientY - prevY) * 0.01;
+    const dx = p.clientX - prevX;
+    const dy = p.clientY - prevY;
+    orbitState.rotY += dx * 0.005;   // حساسية أقل
+    orbitState.rotX += dy * 0.005;
+    orbitState.rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, orbitState.rotX));
     prevX = p.clientX; prevY = p.clientY;
     updateCameraOrbit();
   }
+
   function onEnd() { isDragging = false; }
 
-  renderer3d.domElement.addEventListener('mousedown', onStart);
-  renderer3d.domElement.addEventListener('mousemove', onMove);
-  renderer3d.domElement.addEventListener('mouseup', onEnd);
-  renderer3d.domElement.addEventListener('touchstart', onStart);
-  renderer3d.domElement.addEventListener('touchmove', onMove);
-  renderer3d.domElement.addEventListener('touchend', onEnd);
+  // scroll to zoom (desktop)
+  renderer3d.domElement.addEventListener('wheel', function(e) {
+    orbitState.zoom += e.deltaY * 0.1;
+    orbitState.zoom = Math.max(20, Math.min(200, orbitState.zoom));
+    updateCameraOrbit();
+  });
+
+  renderer3d.domElement.addEventListener('mousedown',  onStart, { passive: false });
+  renderer3d.domElement.addEventListener('mousemove',  onMove,  { passive: false });
+  renderer3d.domElement.addEventListener('mouseup',    onEnd);
+  renderer3d.domElement.addEventListener('touchstart', onStart, { passive: false });
+  renderer3d.domElement.addEventListener('touchmove',  onMove,  { passive: false });
+  renderer3d.domElement.addEventListener('touchend',   onEnd);
 
   animate3D();
 }
 
 function updateCameraOrbit() {
-  const radius = 50;
-  camera3d.position.x = radius * Math.sin(orbitState.rotY) * Math.cos(orbitState.rotX);
-  camera3d.position.y = -radius * Math.cos(orbitState.rotY) * Math.cos(orbitState.rotX);
-  camera3d.position.z = radius * Math.sin(orbitState.rotX) + 20;
+  const r = orbitState.zoom || 80;
+  camera3d.position.x = r * Math.sin(orbitState.rotY) * Math.cos(orbitState.rotX);
+  camera3d.position.y = -r * Math.cos(orbitState.rotY) * Math.cos(orbitState.rotX);
+  camera3d.position.z = r * Math.sin(orbitState.rotX) + 10;
   camera3d.lookAt(0, 0, 0);
 }
 
@@ -676,15 +722,15 @@ function addImplantsToScene() {
     const group = new THREE.Group();
 
     if (markerGeo) {
-      // نعرض الماركر الحقيقي من الـ STL
-      const mat  = new THREE.MeshStandardMaterial({
-        color:     0xcccccc,
-        metalness: 0.1,
-        roughness: 0.6,
+      // مادة تظهر ألوان الـ STL بوضوح
+      const mat  = new THREE.MeshPhongMaterial({
+        color:     0xd0d0d0,
+        specular:  0x444444,
+        shininess: 30,
+        side:      THREE.DoubleSide,
       });
       const mesh = new THREE.Mesh(markerGeo, mat);
-      // نصغّر الـ STL لو كان كبير (scale 0.5 = نص الحجم)
-      mesh.scale.set(0.5, 0.5, 0.5);
+      mesh.scale.set(1, 1, 1);  // الحجم الأصلي بالـ mm
       group.add(mesh);
     } else {
       // fallback لو ما حمّل الـ STL
