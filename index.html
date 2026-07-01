@@ -725,15 +725,20 @@ function addImplantsToScene() {
     group.rotation.set(rx, ry, rz, 'XYZ');
 
     if (markerGeo) {
-      // مادة مع استجابة للإضاءة = تعطي ظلال وعمق
-      const mat  = new THREE.MeshLambertMaterial({
-        color: 0xe0e0e0,
-        side:  THREE.DoubleSide,
-      });
-      const mesh = new THREE.Mesh(markerGeo, mat);
-      // نقلب الماركر 180° حول Z حتى الوجه الأمامي (ArUco) يواجه الكاميرا
+      // الجسم الرئيسي — فضي ثابت بدون حاجة لإضاءة
+      const mesh = new THREE.Mesh(markerGeo,
+        new THREE.MeshBasicMaterial({ color: 0xd4d4d4, side: THREE.FrontSide })
+      );
       mesh.rotation.z = Math.PI;
       group.add(mesh);
+
+      // حواف داكنة تعطي عمق وتبين الشكل
+      const edgeMesh = new THREE.Mesh(markerGeo,
+        new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.BackSide })
+      );
+      edgeMesh.rotation.z = Math.PI;
+      edgeMesh.scale.setScalar(1.04);  // أكبر شوي عشان تطلع الحواف من الخلف
+      group.add(edgeMesh);
     } else {
       // fallback لو ما حمّل الـ STL
       const mesh = new THREE.Mesh(
