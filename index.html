@@ -475,56 +475,32 @@ async function runAnalysis() {
     let ax = '0.0', ay = '0.0', az = '0.0';
     let rotMatrix = null;
 
-    // حساب الزاوية من شكل الـ corners مباشرة (لا يحتاج camera calibration)
-    try {
-      const c = m.corners; // [TL, TR, BR, BL]
-      const leftH  = Math.sqrt(Math.pow(c[0].x-c[3].x,2) + Math.pow(c[0].y-c[3].y,2));
-      const rightH = Math.sqrt(Math.pow(c[1].x-c[2].x,2) + Math.pow(c[1].y-c[2].y,2));
-      const topW   = Math.sqrt(Math.pow(c[0].x-c[1].x,2) + Math.pow(c[0].y-c[1].y,2));
-      const botW   = Math.sqrt(Math.pow(c[3].x-c[2].x,2) + Math.pow(c[3].y-c[2].y,2));
-      const avgH   = (leftH + rightH) / 2;
-      const avgW   = (topW  + botW)   / 2;
-
-      // ميل Y (left/right): لو leftH << rightH = مائل لليسار
-      const ryRad = Math.asin(Math.max(-0.9, Math.min(0.9, (rightH - leftH) / (rightH + leftH) * 2)));
-      // ميل X (up/down): لو topW << botW = مائل للأسفل
-      const rxRad = Math.asin(Math.max(-0.9, Math.min(0.9, (botW - topW) / (botW + topW) * 2)));
-      // دوران Z: من متوسط زاوية الأضلاع العلوي والسفلي
-      const rzRad = Math.atan2(
-        (c[1].y - c[0].y) + (c[2].y - c[3].y),
-        (c[1].x - c[0].x) + (c[2].x - c[3].x)
-      );
-
-      ax = (rxRad * 180/Math.PI).toFixed(1);
-      ay = (ryRad * 180/Math.PI).toFixed(1);
-      az = (rzRad * 180/Math.PI).toFixed(1);
-
-      // بناء rotation matrix من الزوايا
-      const cx_ = Math.cos(rxRad), sx_ = Math.sin(rxRad);
-      const cy_ = Math.cos(ryRad), sy_ = Math.sin(ryRad);
-      const cz_ = Math.cos(rzRad), sz_ = Math.sin(rzRad);
-
-      rotMatrix = [
-        [ cy_*cz_,  cy_*sz_, -sy_    ],
-        [ sx_*sy_*cz_ - cx_*sz_, sx_*sy_*sz_ + cx_*cz_, sx_*cy_ ],
-        [ cx_*sy_*cz_ + sx_*sz_, cx_*sy_*sz_ - sx_*cz_, cx_*cy_ ]
-      ];
-    } catch(e) { console.warn('Corner rotation error:', e); }
-
-    // تقدير Z من حجم الماركر بالصورة (أدق من POSIT بدون calibration)
     try {
       if (typeof POS !== 'undefined') {
-        const FOCAL = w * 2.5;  // تقدير أفضل للـ focal length
+        // Focal length أدق للآيباد — horizontal FOV ~75° → f ≈ w/1.43
+        const FOCAL = w / Math.tan(37.5 * Math.PI / 180) / 2;
         const posit = new POS.Posit(8.0, FOCAL);
-        const corners = m.corners.map(function(c){return {x:c.x-w/2, y:h/2-c.y};});
+        const corners = m.corners.map(function(c){
+          return { x: c.x - w/2, y: h/2 - c.y };
+        });
         const pose = posit.pose(corners);
-        if (pose && pose.bestError < 100) {
-          x = (pose.bestTranslation[0] * w / FOCAL).toFixed(2);
-          y = (pose.bestTranslation[1] * w / FOCAL).toFixed(2);
-          z = pose.bestTranslation[2].toFixed(2);
+
+        if (pose && pose.bestError < 200) {
+          const t = pose.bestTranslation;
+          x = t[0].toFixed(2);
+          y = t[1].toFixed(2);
+          z = t[2].toFixed(2);
+
+          const R = pose.bestRotation;
+          if (R) {
+            rotMatrix = R;
+            ax = (Math.atan2( R[2][1], R[2][2]) * 180/Math.PI).toFixed(1);
+            ay = (Math.atan2(-R[2][0], Math.sqrt(R[2][1]*R[2][1]+R[2][2]*R[2][2])) * 180/Math.PI).toFixed(1);
+            az = (Math.atan2( R[1][0], R[0][0]) * 180/Math.PI).toFixed(1);
+          }
         }
       }
-    } catch(e) {}
+    } catch(e) { console.warn('Pose error:', e); }
 
     return { id: idx+1, aruco_id: id, x: x, y: y, z: z,
              angle_x: ax, angle_y: ay, angle_z: az,
