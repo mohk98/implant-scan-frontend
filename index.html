@@ -587,7 +587,7 @@ function init3D() {
   scene3d.add(grid);
   scene3d.add(new THREE.AxesHelper(15));
 
-  orbitState = { azimuth: 0, elevation: 0.4, zoom: 80, lastDist: 0 };
+  orbitState = { azimuth: 0.5, elevation: 0.6, zoom: 80, lastDist: 0 };
   updateCameraOrbit();
 
   // تحكم بسيط وطبيعي
@@ -728,19 +728,12 @@ function addImplantsToScene() {
     const group = new THREE.Group();
 
     if (markerGeo) {
-      // فضي واضح — MeshBasicMaterial ما يحتاج إضاءة
       const mat  = new THREE.MeshBasicMaterial({
-        color: 0xc8c8c8,
+        color: 0xd8d8d8,
         side:  THREE.DoubleSide,
-        wireframe: false,
       });
       const mesh = new THREE.Mesh(markerGeo, mat);
       group.add(mesh);
-
-      // أضف wireframe خفيف فوق المادة لإبراز الحواف
-      const wireMat  = new THREE.MeshBasicMaterial({ color: 0x555555, wireframe: true, opacity: 0.15, transparent: true });
-      const wireMesh = new THREE.Mesh(markerGeo, wireMat);
-      group.add(wireMesh);
     } else {
       // fallback لو ما حمّل الـ STL
       const mesh = new THREE.Mesh(
@@ -764,10 +757,24 @@ function addImplantsToScene() {
     group.add(sprite);
 
     group.position.set(x, y, z);
-    group.rotation.set(rx, ry, rz);
+    // لا نطبق الـ pose rotation على الجسم — نخليه عامود دائماً
+    // الموضع XYZ كافي للعرض الـ 3D
     scene3d.add(group);
     implantMeshes.push(group);
   });
+
+  // auto-fit: نضبط الـ zoom حسب المسافة بين الزراعات
+  if (lastResults.length > 1) {
+    const pts = lastResults.map(function(imp){
+      return new THREE.Vector3(parseFloat(imp.x)||0, parseFloat(imp.y)||0, parseFloat(imp.z)||0);
+    });
+    let maxDist = 0;
+    for (let i = 0; i < pts.length; i++)
+      for (let j = i+1; j < pts.length; j++)
+        maxDist = Math.max(maxDist, pts[i].distanceTo(pts[j]));
+    orbitState.zoom = Math.max(40, Math.min(150, maxDist * 3));
+    updateCameraOrbit();
+  }
 
   // خط يوصل بين الزراعات
   if (lastResults.length > 1) {
