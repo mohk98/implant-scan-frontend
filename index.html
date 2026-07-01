@@ -122,6 +122,39 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
   </button>
 </div>
 
+
+<!-- CALIBRATION -->
+<div class="screen" id="s-calib">
+  <video id="calib-video" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>
+  <canvas id="calib-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none">
+    <div style="padding:14px 18px;background:linear-gradient(#000b,transparent);display:flex;justify-content:space-between;align-items:center;pointer-events:all">
+      <div style="font-family:monospace;font-size:12px;color:var(--accent);letter-spacing:2px">CALIBRATION</div>
+      <button class="btn-cancel" onclick="stopCalib()">إلغاء</button>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center">
+      <div style="background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:16px 22px;font-size:14px;text-align:center;line-height:1.8;max-width:280px;backdrop-filter:blur(8px)">
+        ضع ماركراً واحداً أمام الكاميرا<br>
+        <span style="color:var(--accent)">المسافة:</span>
+        <input id="calib-dist" type="number" value="100" min="50" max="300" step="10"
+          style="width:60px;background:rgba(255,255,255,.1);border:1px solid var(--accent);border-radius:6px;color:var(--text);font-size:15px;padding:2px 6px;text-align:center;margin:0 4px">
+        <span style="color:var(--accent)">mm</span><br>
+        <span style="font-size:12px;color:var(--muted)">استخدم مسطرة للدقة</span>
+      </div>
+    </div>
+    <div style="padding:16px 18px 36px;background:linear-gradient(transparent,#000c);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:all">
+      <div class="status-pill">
+        <div class="sdot" id="calib-dot"></div>
+        <span id="calib-status">جاري البحث عن ماركر...</span>
+      </div>
+      <button id="calib-confirm-btn" onclick="confirmCalib()"
+        style="width:100%;max-width:280px;padding:14px;border:none;border-radius:14px;background:var(--green);color:#000;font-size:15px;font-weight:600;cursor:pointer;opacity:0;transition:opacity .3s;pointer-events:none">
+        ✓ تأكيد الكالبريشن
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="screen" id="s-scan">
   <video id="video" autoplay playsinline muted></video>
   <canvas id="overlay-canvas"></canvas>
