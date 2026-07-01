@@ -343,9 +343,22 @@ function trackLoop() {
         if (!isValidSquareShape(m.corners)) return;
 
         seen.add(m.id);
-        if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0, locked: false };
-        // نحدث الموضع فقط إذا لسه ما تأكدت، أو لو تأكدت نحدث الموضع الأخير المعروف
+        if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0, locked: false, pose: null };
         detectedMarkers[m.id].corners = m.corners;
+
+        // نحسب الـ pose لكل frame ونحفظه (مهم للـ 3D view)
+        if (typeof POS !== 'undefined') {
+          try {
+            const canvas = document.getElementById('overlay-canvas');
+            const w = canvas.width || 1280;
+            const h = canvas.height || 720;
+            const posit = new POS.Posit(8.0, w);
+            const corners4 = m.corners.map(function(c){ return {x: c.x-w/2, y: h/2-c.y}; });
+            const p = posit.pose(corners4);
+            if (p && p.bestError < 100) detectedMarkers[m.id].pose = p;
+          } catch(e) {}
+        }
+
         if (!detectedMarkers[m.id].locked) {
           detectedMarkers[m.id].frames = Math.min(30, detectedMarkers[m.id].frames + 1);
           if (detectedMarkers[m.id].frames >= 15) {
@@ -460,11 +473,10 @@ async function runAnalysis() {
     let y = ((cy - h/2) * scale).toFixed(3);
     let z = '0.000';
     let ax = '0.0', ay = '0.0', az = '0.0';
+    let rotMatrix = null;
 
     try {
       if (typeof POS !== 'undefined') {
-        // حجم الماركر الحقيقي = 8mm (من الـ STL)
-        // نستخدم الـ focal length التقديري = عرض الصورة (يناسب الآيباد)
         const MARKER_MM = 8.0;
         const posit   = new POS.Posit(MARKER_MM, w);
         const corners = m.corners.map(function(c){return {x:c.x-w/2, y:h/2-c.y};});
@@ -474,22 +486,22 @@ async function runAnalysis() {
           y = pose.bestTranslation[1].toFixed(2);
           z = pose.bestTranslation[2].toFixed(2);
 
-          // استخراج الزوايا من rotation matrix
           const R = pose.bestRotation;
           if (R) {
-            const rx = Math.atan2(R[2][1], R[2][2]) * 180/Math.PI;
-            const ry = Math.atan2(-R[2][0], Math.sqrt(R[2][1]*R[2][1]+R[2][2]*R[2][2])) * 180/Math.PI;
-            const rz = Math.atan2(R[1][0], R[0][0]) * 180/Math.PI;
-            ax = rx.toFixed(1);
-            ay = ry.toFixed(1);
-            az = rz.toFixed(1);
+            // نحفظ الـ matrix مباشرة للـ 3D view
+            rotMatrix = R;
+            // Euler angles للعرض النصي
+            ax = (Math.atan2(R[2][1], R[2][2]) * 180/Math.PI).toFixed(1);
+            ay = (Math.atan2(-R[2][0], Math.sqrt(R[2][1]*R[2][1]+R[2][2]*R[2][2])) * 180/Math.PI).toFixed(1);
+            az = (Math.atan2(R[1][0], R[0][0]) * 180/Math.PI).toFixed(1);
           }
         }
       }
-    } catch(e) { console.warn('Pose estimation error:', e); }
+    } catch(e) { console.warn('Pose error:', e); }
 
     return { id: idx+1, aruco_id: id, x: x, y: y, z: z,
              angle_x: ax, angle_y: ay, angle_z: az,
+             rotMatrix: rotMatrix,
              quality: Math.min(99, m.frames*4) };
   });
 
@@ -715,14 +727,22 @@ function addImplantsToScene() {
     const x  = parseFloat(imp.x) || 0;
     const y  = parseFloat(imp.y) || 0;
     const z  = parseFloat(imp.z) || 0;
-    const rx = parseFloat(imp.angle_x) * Math.PI / 180 || 0;
-    const ry = parseFloat(imp.angle_y) * Math.PI / 180 || 0;
-    const rz = parseFloat(imp.angle_z) * Math.PI / 180 || 0;
-
     const group = new THREE.Group();
     group.position.set(x, y, z);
-    // نطبق الزاوية الحقيقية من الـ pose estimation
-    group.rotation.set(rx, ry, rz, 'XYZ');
+
+    // نطبق الـ rotation matrix مباشرة بدون تحويل Euler
+    if (imp.rotMatrix) {
+      const R = imp.rotMatrix;
+      // تحويل من camera coordinates (Y-down, Z-in) لـ Three.js (Y-up, Z-out)
+      const m4 = new THREE.Matrix4();
+      m4.set(
+         R[0][0], -R[0][1], -R[0][2], 0,
+        -R[1][0],  R[1][1],  R[1][2], 0,
+        -R[2][0],  R[2][1],  R[2][2], 0,
+         0,        0,        0,        1
+      );
+      group.rotation.setFromRotationMatrix(m4);
+    }
 
     if (markerGeo) {
       // الجسم الرئيسي — فضي ثابت بدون حاجة لإضاءة
