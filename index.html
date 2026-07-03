@@ -147,7 +147,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
         <div class="sdot" id="calib-dot"></div>
         <span id="calib-status">جاري البحث عن ماركر...</span>
       </div>
-      <button id="calib-confirm-btn" onclick="confirmCalib()"
+      <button id="calib-confirm-btn"
         style="width:100%;max-width:280px;padding:18px;border:none;border-radius:14px;background:var(--green);color:#000;font-size:16px;font-weight:600;cursor:pointer;opacity:0.35;transition:opacity .3s;pointer-events:all;min-height:52px">
         ✓ تأكيد الكالبريشن
       </button>
@@ -310,7 +310,11 @@ function calibLoop() {
           Math.hypot(c[3].x-c[2].x, c[3].y-c[2].y),
           Math.hypot(c[0].x-c[3].x, c[0].y-c[3].y),
         ];
-        detectedCalibSize = sides.reduce(function(a,b){return a+b;}) / 4;
+        const rawSize = sides.reduce(function(a,b){return a+b;}) / 4;
+        // متوسط متحرك يخفف اهتزاز القراءة بدل ما تتغير رقمياً كل frame
+        detectedCalibSize = detectedCalibSize
+          ? detectedCalibSize * 0.8 + rawSize * 0.2
+          : rawSize;
         calibMissFrames = 0;  // reset — الماركر موجود الحين
 
         ctx.strokeStyle = '#00e676';
@@ -346,24 +350,51 @@ function calibLoop() {
 }
 
 function confirmCalib() {
+  const statusEl = document.getElementById('calib-status');
+  const dotEl    = document.getElementById('calib-dot');
+
   if (!detectedCalibSize) {
-    alert('لسه ما تم اكتشاف الماركر بثبات — ثبّت الماركر أمام الكاميرا وانتظر ثانية ثم اضغط');
+    statusEl.textContent = '✗ ثبّت الماركر أمام الكاميرا أول';
+    dotEl.className = 'sdot';
+    if (navigator.vibrate) navigator.vibrate(200);
     return;
   }
   const dist   = parseFloat(document.getElementById('calib-dist').value) || 100;
   calibFocal   = detectedCalibSize * dist / 8.0;
 
-  // نحفظ في localStorage
   try {
     localStorage.setItem('implant_focal_length', calibFocal.toString());
     localStorage.setItem('implant_calib_date', new Date().toLocaleDateString('ar'));
   } catch(e) {}
 
   if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
-  alert('✅ الكالبريشن تم بنجاح!\n\nFocal Length: ' + Math.round(calibFocal) + 'px\nالمسافة: ' + dist + 'mm');
-  stopCalib();
+
+  // نعرض النجاح داخل نفس الشاشة (بدل alert اللي بعض المتصفحات تحجبه بصمت)
+  statusEl.textContent = '✅ تم الحفظ! f=' + Math.round(calibFocal) + 'px';
+  dotEl.className = 'sdot found';
+  document.getElementById('calib-confirm-btn').textContent = '✓ تم — جاري الرجوع...';
   checkCalibBadge();
+
+  setTimeout(function() { stopCalib(); }, 1200);
 }
+
+// نربط الحدث مباشرة بالـ JS (أوثق من onclick بالـ HTML)
+// ونستخدم touchend + click مع منع التكرار (لتفادي أي تراكب أو حجب)
+window.addEventListener('load', function() {
+  const btn = document.getElementById('calib-confirm-btn');
+  if (btn) {
+    let lastTrigger = 0;
+    function trigger(e) {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastTrigger < 500) return; // منع الضغط المزدوج
+      lastTrigger = now;
+      confirmCalib();
+    }
+    btn.addEventListener('touchend', trigger, { passive: false });
+    btn.addEventListener('click', trigger);
+  }
+});
 
 function loadCalibration() {
   try {
