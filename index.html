@@ -253,12 +253,15 @@ let calibStream = null;
 let calibRafId  = null;
 let calibFocal  = null;
 let detectedCalibSize = null;
+let calibMissFrames = 0;
 
 function startCalib() {
   navigator.mediaDevices.getUserMedia({
     video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
   }).then(function(s) {
     calibStream = s;
+    calibMissFrames = 0;
+    detectedCalibSize = null;
     const video = document.getElementById('calib-video');
     video.srcObject = s;
     video.play();
@@ -301,7 +304,6 @@ function calibLoop() {
 
       if (found) {
         const c = found.corners;
-        // حجم الماركر بالبكسل (متوسط أطوال الأضلاع الأربعة)
         const sides = [
           Math.hypot(c[1].x-c[0].x, c[1].y-c[0].y),
           Math.hypot(c[2].x-c[1].x, c[2].y-c[1].y),
@@ -309,8 +311,8 @@ function calibLoop() {
           Math.hypot(c[0].x-c[3].x, c[0].y-c[3].y),
         ];
         detectedCalibSize = sides.reduce(function(a,b){return a+b;}) / 4;
+        calibMissFrames = 0;  // reset — الماركر موجود الحين
 
-        // ارسم مربع حول الماركر
         ctx.strokeStyle = '#00e676';
         ctx.lineWidth   = 3;
         ctx.beginPath();
@@ -321,7 +323,6 @@ function calibLoop() {
         ctx.closePath();
         ctx.stroke();
 
-        // حجم الماركر بالبكسل والـ focal المحسوب
         const dist = parseFloat(document.getElementById('calib-dist').value) || 100;
         const fEst = detectedCalibSize * dist / 8.0;
 
@@ -330,11 +331,15 @@ function calibLoop() {
         document.getElementById('calib-confirm-btn').style.opacity = '1';
         document.getElementById('calib-confirm-btn').style.pointerEvents = 'all';
       } else {
-        detectedCalibSize = null;
-        document.getElementById('calib-dot').className    = 'sdot';
-        document.getElementById('calib-status').textContent = 'جاري البحث عن ماركر...';
-        document.getElementById('calib-confirm-btn').style.opacity = '0';
-        document.getElementById('calib-confirm-btn').style.pointerEvents = 'none';
+        // نتحمل غياب الماركر لعدة frames قبل ما نلغي الزر (يمنع الوميض)
+        calibMissFrames++;
+        if (calibMissFrames > 10) {
+          detectedCalibSize = null;
+          document.getElementById('calib-dot').className    = 'sdot';
+          document.getElementById('calib-status').textContent = 'جاري البحث عن ماركر...';
+          document.getElementById('calib-confirm-btn').style.opacity = '0';
+          document.getElementById('calib-confirm-btn').style.pointerEvents = 'none';
+        }
       }
     } catch(e) {}
   }
