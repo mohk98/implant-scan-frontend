@@ -125,33 +125,32 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 
 <!-- CALIBRATION -->
 <div class="screen" id="s-calib">
-  <video id="calib-video" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>
-  <canvas id="calib-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
-  <div style="position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none">
-    <div style="padding:14px 18px;background:linear-gradient(#000b,transparent);display:flex;justify-content:space-between;align-items:center;pointer-events:all">
-      <div style="font-family:monospace;font-size:12px;color:var(--accent);letter-spacing:2px">CALIBRATION</div>
-      <button class="btn-cancel" onclick="stopCalib()">إلغاء</button>
+  <video id="calib-video" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1"></video>
+  <canvas id="calib-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:2"></canvas>
+
+  <div style="position:absolute;top:0;left:0;right:0;z-index:3;padding:14px 18px;background:linear-gradient(#000b,transparent);display:flex;justify-content:space-between;align-items:center">
+    <div style="font-family:monospace;font-size:12px;color:var(--accent);letter-spacing:2px">CALIBRATION</div>
+    <button class="btn-cancel" onclick="stopCalib()">إلغاء</button>
+  </div>
+
+  <div style="position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);z-index:3;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:16px 22px;font-size:14px;text-align:center;line-height:1.8;max-width:280px">
+    ضع ماركراً واحداً أمام الكاميرا<br>
+    <span style="color:var(--accent)">المسافة:</span>
+    <input id="calib-dist" type="number" value="100" min="50" max="300" step="10"
+      style="width:60px;background:rgba(255,255,255,.1);border:1px solid var(--accent);border-radius:6px;color:var(--text);font-size:15px;padding:2px 6px;text-align:center;margin:0 4px">
+    <span style="color:var(--accent)">mm</span><br>
+    <span style="font-size:12px;color:var(--muted)">استخدم مسطرة للدقة</span>
+  </div>
+
+  <div style="position:absolute;bottom:0;left:0;right:0;z-index:20;padding:16px 18px 36px;background:linear-gradient(transparent,#000d);display:flex;flex-direction:column;align-items:center;gap:10px">
+    <div class="status-pill" style="position:relative;z-index:21">
+      <div class="sdot" id="calib-dot"></div>
+      <span id="calib-status">جاري البحث عن ماركر...</span>
     </div>
-    <div style="flex:1;display:flex;align-items:center;justify-content:center">
-      <div style="background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:16px 22px;font-size:14px;text-align:center;line-height:1.8;max-width:280px;backdrop-filter:blur(8px)">
-        ضع ماركراً واحداً أمام الكاميرا<br>
-        <span style="color:var(--accent)">المسافة:</span>
-        <input id="calib-dist" type="number" value="100" min="50" max="300" step="10"
-          style="width:60px;background:rgba(255,255,255,.1);border:1px solid var(--accent);border-radius:6px;color:var(--text);font-size:15px;padding:2px 6px;text-align:center;margin:0 4px">
-        <span style="color:var(--accent)">mm</span><br>
-        <span style="font-size:12px;color:var(--muted)">استخدم مسطرة للدقة</span>
-      </div>
-    </div>
-    <div style="padding:16px 18px 36px;background:linear-gradient(transparent,#000c);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:all">
-      <div class="status-pill">
-        <div class="sdot" id="calib-dot"></div>
-        <span id="calib-status">جاري البحث عن ماركر...</span>
-      </div>
-      <button id="calib-confirm-btn" onclick="confirmCalib()"
-        style="width:100%;max-width:280px;padding:18px;border:none;border-radius:14px;background:var(--green);color:#000;font-size:16px;font-weight:600;cursor:pointer;opacity:0.35;transition:opacity .3s;pointer-events:all;min-height:52px;touch-action:manipulation">
-        ✓ تأكيد الكالبريشن
-      </button>
-    </div>
+    <button id="calib-confirm-btn" onclick="confirmCalib()"
+      style="position:relative;z-index:21;width:100%;max-width:280px;padding:18px;border:none;border-radius:14px;background:var(--green);color:#000;font-size:16px;font-weight:600;cursor:pointer;opacity:0.35;transition:opacity .3s;min-height:52px;touch-action:manipulation">
+      ✓ تأكيد الكالبريشن
+    </button>
   </div>
 </div>
 
@@ -384,12 +383,18 @@ function confirmCalib() {
 }
 
 // نربط الحدث مباشرة (الزر موجود بالـ DOM أصلاً قبل هذا الكود)
-// بدون انتظار window 'load' لتفادي أي تأخير أو تعارض
-// هذا احتياطي إضافي بجانب onclick بالـ HTML لضمان أعلى استجابة ممكنة
 (function attachCalibButton() {
   const btn = document.getElementById('calib-confirm-btn');
   if (!btn) { console.warn('calib-confirm-btn not found'); return; }
-  btn.addEventListener('touchend', function(e) { e.preventDefault(); confirmCalib(); }, { passive: false });
+  // تأكيد بصري فوري عند أي لمسة تصل للزر (يثبت وصول اللمسة)
+  btn.addEventListener('touchstart', function() {
+    btn.style.background = '#ffffff';
+  }, { passive: true });
+  btn.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    btn.style.background = 'var(--green)';
+    confirmCalib();
+  }, { passive: false });
 })();
 
 function loadCalibration() {
