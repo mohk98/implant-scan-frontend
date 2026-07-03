@@ -147,8 +147,8 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
         <div class="sdot" id="calib-dot"></div>
         <span id="calib-status">جاري البحث عن ماركر...</span>
       </div>
-      <button id="calib-confirm-btn"
-        style="width:100%;max-width:280px;padding:18px;border:none;border-radius:14px;background:var(--green);color:#000;font-size:16px;font-weight:600;cursor:pointer;opacity:0.35;transition:opacity .3s;pointer-events:all;min-height:52px">
+      <button id="calib-confirm-btn" onclick="confirmCalib()"
+        style="width:100%;max-width:280px;padding:18px;border:none;border-radius:14px;background:var(--green);color:#000;font-size:16px;font-weight:600;cursor:pointer;opacity:0.35;transition:opacity .3s;pointer-events:all;min-height:52px;touch-action:manipulation">
         ✓ تأكيد الكالبريشن
       </button>
     </div>
@@ -349,7 +349,12 @@ function calibLoop() {
   calibRafId = requestAnimationFrame(calibLoop);
 }
 
+let lastConfirmCalibCall = 0;
 function confirmCalib() {
+  const now = Date.now();
+  if (now - lastConfirmCalibCall < 500) return; // منع التكرار من onclick + JS listener مع بعض
+  lastConfirmCalibCall = now;
+
   const statusEl = document.getElementById('calib-status');
   const dotEl    = document.getElementById('calib-dot');
 
@@ -378,23 +383,14 @@ function confirmCalib() {
   setTimeout(function() { stopCalib(); }, 1200);
 }
 
-// نربط الحدث مباشرة بالـ JS (أوثق من onclick بالـ HTML)
-// ونستخدم touchend + click مع منع التكرار (لتفادي أي تراكب أو حجب)
-window.addEventListener('load', function() {
+// نربط الحدث مباشرة (الزر موجود بالـ DOM أصلاً قبل هذا الكود)
+// بدون انتظار window 'load' لتفادي أي تأخير أو تعارض
+// هذا احتياطي إضافي بجانب onclick بالـ HTML لضمان أعلى استجابة ممكنة
+(function attachCalibButton() {
   const btn = document.getElementById('calib-confirm-btn');
-  if (btn) {
-    let lastTrigger = 0;
-    function trigger(e) {
-      e.preventDefault();
-      const now = Date.now();
-      if (now - lastTrigger < 500) return; // منع الضغط المزدوج
-      lastTrigger = now;
-      confirmCalib();
-    }
-    btn.addEventListener('touchend', trigger, { passive: false });
-    btn.addEventListener('click', trigger);
-  }
-});
+  if (!btn) { console.warn('calib-confirm-btn not found'); return; }
+  btn.addEventListener('touchend', function(e) { e.preventDefault(); confirmCalib(); }, { passive: false });
+})();
 
 function loadCalibration() {
   try {
