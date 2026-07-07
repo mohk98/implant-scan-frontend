@@ -258,10 +258,11 @@ let calibMissFrames = 0;
 
 function startCalib() {
   navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
   }).then(function(s) {
     calibStream = s;
     calibMissFrames = 0;
+    calibFrameCount = 0;
     detectedCalibSize = null;
     const video = document.getElementById('calib-video');
     video.srcObject = s;
@@ -279,6 +280,9 @@ function stopCalib() {
   goTo('s-start');
 }
 
+let calibFrameCount = 0;
+let calibAnalysisCanvas = null;
+
 function calibLoop() {
   const video  = document.getElementById('calib-video');
   const canvas = document.getElementById('calib-canvas');
@@ -288,17 +292,29 @@ function calibLoop() {
   canvas.width  = video.videoWidth;
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
+  calibFrameCount++;
 
-  // كشف الماركر
-  if (detectors.length) {
+  const SCALE_DOWN = 0.5;
+  if (!calibAnalysisCanvas) calibAnalysisCanvas = document.createElement('canvas');
+  calibAnalysisCanvas.width  = Math.round(canvas.width  * SCALE_DOWN);
+  calibAnalysisCanvas.height = Math.round(canvas.height * SCALE_DOWN);
+  const cactx = calibAnalysisCanvas.getContext('2d');
+  cactx.drawImage(canvas, 0, 0, calibAnalysisCanvas.width, calibAnalysisCanvas.height);
+
+  // كشف الماركر — كل 4 frames بس، وعلى نسخة مصغّرة (يخفف الحمل بشكل كبير)
+  if (calibFrameCount % 4 === 0 && detectors.length) {
     try {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const imageData = cactx.getImageData(0, 0, calibAnalysisCanvas.width, calibAnalysisCanvas.height);
       let found = null;
       detectors.forEach(function(d) {
         if (!found) {
           const markers = d.det.detect(imageData);
           if (markers.length > 0 && VALID_IDS.has(markers[0].id) && isValidSquareShape(markers[0].corners)) {
             found = markers[0];
+            // نكبّر الزوايا رجوعاً لمقياس الصورة الكاملة
+            found.corners = found.corners.map(function(c){
+              return { x: c.x / SCALE_DOWN, y: c.y / SCALE_DOWN };
+            });
           }
         }
       });
@@ -457,7 +473,9 @@ function registerImplantScanDictionary() {
 function initDetectors() {
   registerImplantScanDictionary();
   // قاموسنا المخصص أولاً، والقواميس القياسية كـ fallback
-  const candidateNames = ['IMPLANTSCAN', 'ARUCO', 'ARUCO_MIP_36h12'];
+  // نستخدم قاموسنا المخصص فقط — القواميس الثانية كانت للاختبار
+  // وتشغيلها مع بعض يثلّث حمل المعالجة بدون أي فايدة على الماركرات الحقيقية
+  const candidateNames = ['IMPLANTSCAN'];
   const dicts = [];
   candidateNames.forEach(function(n) {
     if (AR.DICTIONARIES && AR.DICTIONARIES[n]) dicts.push(n);
@@ -503,7 +521,7 @@ async function startScan() {
   }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
     });
     const video = document.getElementById('video');
     video.srcObject = stream;
@@ -533,6 +551,8 @@ function resetDetection() {
   buildIndicators();
 }
 
+let analysisCanvas = null;  // canvas مصغّر للتحليل فقط — يقلل الحمل بشكل كبير
+
 function trackLoop() {
   const video  = document.getElementById('video');
   const canvas = document.getElementById('overlay-canvas');
@@ -543,12 +563,30 @@ function trackLoop() {
   ctx.drawImage(video, 0, 0);
   frameCount++;
 
-  if (frameCount % 5 === 0 && detectors.length) {
+  // نحلل على نسخة مصغّرة (نص الأبعاد = ربع البكسلات) — أسرع بكثير
+  // ونكبّر إحداثيات الزوايا المكتشفة رجوعاً لمقياس الصورة الكاملة
+  const SCALE_DOWN = 0.5;
+  if (!analysisCanvas) analysisCanvas = document.createElement('canvas');
+  analysisCanvas.width  = Math.round(canvas.width  * SCALE_DOWN);
+  analysisCanvas.height = Math.round(canvas.height * SCALE_DOWN);
+  const actx = analysisCanvas.getContext('2d');
+  actx.drawImage(canvas, 0, 0, analysisCanvas.width, analysisCanvas.height);
+
+  if (frameCount % 8 === 0 && detectors.length) {
     try {
-      const imageData  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const imageData  = actx.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
       const allMarkers = [];
       detectors.forEach(function(d) {
-        try { d.det.detect(imageData).forEach(function(m) { m.dict = d.name; allMarkers.push(m); }); }
+        try {
+          d.det.detect(imageData).forEach(function(m) {
+            m.dict = d.name;
+            // نكبّر الزوايا رجوعاً لمقياس الصورة الكاملة (كانت محسوبة على نسخة مصغّرة)
+            m.corners = m.corners.map(function(c){
+              return { x: c.x / SCALE_DOWN, y: c.y / SCALE_DOWN };
+            });
+            allMarkers.push(m);
+          });
+        }
         catch(e) {}
       });
       const seen = new Set();
