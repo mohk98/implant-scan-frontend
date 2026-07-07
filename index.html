@@ -120,6 +120,9 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
     ⚙️ معايرة الكاميرا
     <span id="calib-badge" style="color:var(--green);font-size:11px;display:none"> ✓ مُعايَر</span>
   </button>
+  <button onclick="clearCalibration()" style="background:transparent;border:none;color:var(--muted);padding:4px;font-size:11px;cursor:pointer;text-decoration:underline">
+    مسح الكالبريشن القديم
+  </button>
 </div>
 
 
@@ -426,6 +429,16 @@ function loadCalibration() {
   return false;
 }
 
+function clearCalibration() {
+  try {
+    localStorage.removeItem('implant_focal_length');
+    localStorage.removeItem('implant_calib_date');
+  } catch(e) {}
+  calibFocal = null;
+  checkCalibBadge();
+  alert('تم مسح الكالبريشن — اضغط "معايرة الكاميرا" لإعادة المعايرة من جديد');
+}
+
 function checkCalibBadge() {
   const badge = document.getElementById('calib-badge');
   if (badge) {
@@ -723,6 +736,7 @@ async function runAnalysis() {
 
   // الـ focal المستخدم — من الكالبريشن لو موجود، وإلا تقدير تقريبي
   const FOCAL = calibFocal || (w / Math.tan(37.5 * Math.PI / 180) / 2);
+  window.FOCAL_USED_FOR_DEBUG = FOCAL;
 
   let results = null;
 
@@ -809,6 +823,8 @@ function showResults(implants) {
     ? '✓ Triangulation دقيق (' + capturedFrames.length + ' إطار)'
     : '⚠ حساب تقريبي — إطار واحد';
   document.getElementById('res-sub').textContent = implants.length + ' زراعة — ' + source;
+  // معلومة تشخيصية مؤقتة — تساعدنا نلقط أي خطأ بالقياسات
+  document.getElementById('res-sub').textContent += ' | f=' + Math.round(window.FOCAL_USED_FOR_DEBUG || 0) + 'px';
   const cont = document.getElementById('imp-cards');
   cont.innerHTML = '';
 
