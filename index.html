@@ -214,6 +214,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Arabic',s
 // نحن طبعنا فقط Scan Bodies بـ ArUco IDs من 0 إلى 9
 // أي ID خارج هذا النطاق = false positive (نقش عشوائي شابه نمط ArUco صدفة)
 const VALID_IDS = new Set([0,1,2,3,4,5,6,7,8,9]);
+const API = "https://implant-scan-production.up.railway.app";
 
 // فلتر هندسي: يتحقق إن الـ 4 نقاط تشكل تقريباً مربع منتظم
 // (الماركر الحقيقي مربع، بعكس مفاتيح الكيبورد أو واجهات البرامج اللي غالباً مستطيلة)
@@ -243,6 +244,7 @@ let rafId           = null;
 let detectors       = [];
 let detectedMarkers = {};
 let capturedFrames  = [];
+const MAX_CAPTURED_FRAMES = 60;  // فريمات أكثر = دقة أعلى بالـ triangulation
 let frameCount      = 0;
 let lastResults     = [];
 
@@ -256,7 +258,7 @@ let calibMissFrames = 0;
 
 function startCalib() {
   navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
   }).then(function(s) {
     calibStream = s;
     calibMissFrames = 0;
@@ -501,7 +503,7 @@ async function startScan() {
   }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
     });
     const video = document.getElementById('video');
     video.srcObject = stream;
@@ -550,6 +552,8 @@ function trackLoop() {
         catch(e) {}
       });
       const seen = new Set();
+      const validMarkersThisFrame = [];  // نجمعها لهذا الـ frame لأجل الـ triangulation
+
       allMarkers.forEach(function(m) {
         // نقبل فقط الـ IDs اللي طبعناها فعلياً (0-9) — أي شي ثاني = false positive
         if (!VALID_IDS.has(m.id)) return;
@@ -559,21 +563,8 @@ function trackLoop() {
         if (!isValidSquareShape(m.corners)) return;
 
         seen.add(m.id);
-        if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0, locked: false, pose: null };
+        if (!detectedMarkers[m.id]) detectedMarkers[m.id] = { corners: m.corners, frames: 0, locked: false };
         detectedMarkers[m.id].corners = m.corners;
-
-        // نحسب الـ pose لكل frame ونحفظه (مهم للـ 3D view)
-        if (typeof POS !== 'undefined') {
-          try {
-            const canvas = document.getElementById('overlay-canvas');
-            const w = canvas.width || 1280;
-            const h = canvas.height || 720;
-            const posit = new POS.Posit(8.0, w);
-            const corners4 = m.corners.map(function(c){ return {x: c.x-w/2, y: h/2-c.y}; });
-            const p = posit.pose(corners4);
-            if (p && p.bestError < 100) detectedMarkers[m.id].pose = p;
-          } catch(e) {}
-        }
 
         if (!detectedMarkers[m.id].locked) {
           detectedMarkers[m.id].frames = Math.min(30, detectedMarkers[m.id].frames + 1);
@@ -582,7 +573,24 @@ function trackLoop() {
             if (navigator.vibrate) navigator.vibrate([40, 20, 80]);
           }
         }
+
+        // نجمع نسخة من الزوايا بهيئة تناسب الـ backend (x,y فقط، مو كل خصائص js-aruco2)
+        validMarkersThisFrame.push({
+          id: m.id,
+          corners: m.corners.map(function(c){ return {x: c.x, y: c.y}; })
+        });
       });
+
+      // نخزن هذا الـ frame كامل (كل الماركرات المكتشفة فيه) — يفيد الـ triangulation
+      // لأن العلاقة بين ماركرين بنفس الصورة هي أساس الحساب
+      if (validMarkersThisFrame.length >= 1 && capturedFrames.length < MAX_CAPTURED_FRAMES) {
+        capturedFrames.push({
+          width: canvas.width,
+          height: canvas.height,
+          markers: validMarkersThisFrame
+        });
+      }
+
       // الماركرات الملقّاة (locked) تبقى محفوظة حتى لو خرجت من الكادر
       // الماركرات غير المؤكدة فقط تتلاشى إذا غابت
       Object.keys(detectedMarkers).forEach(function(id) {
@@ -596,7 +604,6 @@ function trackLoop() {
 
   drawOverlay(ctx);
   updateUI();
-  if (capturedFrames.length < 30) capturedFrames.push(canvas.toDataURL('image/jpeg', 0.5));
   rafId = requestAnimationFrame(trackLoop);
 }
 
@@ -675,63 +682,95 @@ async function runAnalysis() {
   const canvas = document.getElementById('overlay-canvas');
   const w = canvas.width || 1280;
   const h = canvas.height || 720;
-  const scale = 80 / w;
 
-  const confirmedIds = Object.keys(detectedMarkers)
-    .filter(function(id){return detectedMarkers[id].locked;})
-    .slice(0, implantCount);
+  // الـ focal المستخدم — من الكالبريشن لو موجود، وإلا تقدير تقريبي
+  const FOCAL = calibFocal || (w / Math.tan(37.5 * Math.PI / 180) / 2);
 
-  const results = confirmedIds.map(function(id, idx) {
-    const m  = detectedMarkers[id];
-    const cx = (m.corners[0].x+m.corners[1].x+m.corners[2].x+m.corners[3].x) / 4;
-    const cy = (m.corners[0].y+m.corners[1].y+m.corners[2].y+m.corners[3].y) / 4;
-    let x = ((cx - w/2) * scale).toFixed(3);
-    let y = ((cy - h/2) * scale).toFixed(3);
-    let z = '0.000';
-    let ax = '0.0', ay = '0.0', az = '0.0';
-    let rotMatrix = null;
+  let results = null;
 
+  // ═══ المحاولة الأولى: Backend triangulation (الدقة الحقيقية) ═══
+  if (capturedFrames.length >= 5) {
     try {
-      if (typeof POS !== 'undefined') {
-        // Focal length أدق للآيباد — horizontal FOV ~75° → f ≈ w/1.43
-        // نستخدم الـ focal المعاير لو متوفر، وإلا نقدر من حجم الآيباد
-        const FOCAL = calibFocal || (w / Math.tan(37.5 * Math.PI / 180) / 2);
-        const posit = new POS.Posit(8.0, FOCAL);
-        const corners = m.corners.map(function(c){
-          return { x: c.x - w/2, y: h/2 - c.y };
-        });
-        const pose = posit.pose(corners);
+      const resp = await fetch(API + '/triangulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          frames: capturedFrames,
+          focal_length_px: FOCAL,
+          marker_size_mm: 8.0
+        })
+      });
 
-        if (pose && pose.bestError < 200) {
-          const t = pose.bestTranslation;
-          x = t[0].toFixed(2);
-          y = t[1].toFixed(2);
-          z = t[2].toFixed(2);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success && data.markers && data.markers.length) {
+          const confirmedIds = Object.keys(detectedMarkers)
+            .filter(function(id){return detectedMarkers[id].locked;})
+            .map(Number);
 
-          const R = pose.bestRotation;
-          if (R) {
-            rotMatrix = R;
-            ax = (Math.atan2( R[2][1], R[2][2]) * 180/Math.PI).toFixed(1);
-            ay = (Math.atan2(-R[2][0], Math.sqrt(R[2][1]*R[2][1]+R[2][2]*R[2][2])) * 180/Math.PI).toFixed(1);
-            az = (Math.atan2( R[1][0], R[0][0]) * 180/Math.PI).toFixed(1);
-          }
+          results = data.markers
+            .filter(function(m){ return confirmedIds.includes(m.id); })
+            .slice(0, implantCount)
+            .map(function(m, idx) {
+              return {
+                id: idx+1, aruco_id: String(m.id),
+                x: m.x.toFixed(3), y: m.y.toFixed(3), z: m.z.toFixed(3),
+                angle_x: '—', angle_y: '—', angle_z: '—',
+                stdDev: m.std_dev_mm, obsCount: m.num_observations,
+                isReference: m.id === data.reference_marker_id,
+                quality: Math.max(50, 99 - Math.round(m.std_dev_mm * 20)),
+                source: 'triangulation'
+              };
+            });
         }
       }
-    } catch(e) { console.warn('Pose error:', e); }
+    } catch(e) { console.warn('Backend triangulation failed, falling back:', e); }
+  }
 
-    return { id: idx+1, aruco_id: id, x: x, y: y, z: z,
-             angle_x: ax, angle_y: ay, angle_z: az,
-             rotMatrix: rotMatrix,
-             quality: Math.min(99, m.frames*4) };
-  });
+  // ═══ Fallback: حساب محلي من آخر frame فقط (أقل دقة، بس يضمن نتيجة دائماً) ═══
+  if (!results) {
+    const confirmedIds = Object.keys(detectedMarkers)
+      .filter(function(id){return detectedMarkers[id].locked;})
+      .slice(0, implantCount);
 
-  await new Promise(function(r){setTimeout(r, 800);});
+    results = confirmedIds.map(function(id, idx) {
+      const m  = detectedMarkers[id];
+      const cx = (m.corners[0].x+m.corners[1].x+m.corners[2].x+m.corners[3].x) / 4;
+      const cy = (m.corners[0].y+m.corners[1].y+m.corners[2].y+m.corners[3].y) / 4;
+      let x = ((cx - w/2) * 80/w).toFixed(3);
+      let y = ((cy - h/2) * 80/w).toFixed(3);
+      let z = '0.000';
+
+      try {
+        if (typeof POS !== 'undefined') {
+          const posit = new POS.Posit(8.0, FOCAL);
+          const corners = m.corners.map(function(c){ return { x: c.x - w/2, y: h/2 - c.y }; });
+          const pose = posit.pose(corners);
+          if (pose && pose.bestError < 200) {
+            x = pose.bestTranslation[0].toFixed(2);
+            y = pose.bestTranslation[1].toFixed(2);
+            z = pose.bestTranslation[2].toFixed(2);
+          }
+        }
+      } catch(e) {}
+
+      return { id: idx+1, aruco_id: id, x: x, y: y, z: z,
+               angle_x: '—', angle_y: '—', angle_z: '—',
+               stdDev: null, obsCount: 1, isReference: false,
+               quality: Math.min(70, m.frames*3),
+               source: 'fallback' };
+    });
+  }
+
   showResults(results);
 }
 
 function showResults(implants) {
   lastResults = implants;
-  document.getElementById('res-sub').textContent = implants.length + ' زراعة مكتشفة';
+  const source = implants.length && implants[0].source === 'triangulation'
+    ? '✓ Triangulation دقيق (' + capturedFrames.length + ' إطار)'
+    : '⚠ حساب تقريبي — إطار واحد';
+  document.getElementById('res-sub').textContent = implants.length + ' زراعة — ' + source;
   const cont = document.getElementById('imp-cards');
   cont.innerHTML = '';
 
@@ -739,10 +778,15 @@ function showResults(implants) {
     cont.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px">ما تم اكتشاف زراعات — جرب مرة ثانية</p>';
   } else {
     implants.forEach(function(imp) {
+      const refBadge = imp.isReference
+        ? '<span style="color:var(--accent);font-size:11px"> (مرجع)</span>' : '';
+      const stdBadge = (imp.stdDev !== null && imp.stdDev !== undefined)
+        ? '<div style="font-size:11px;color:var(--muted);margin-top:4px">± ' + imp.stdDev.toFixed(3) + 'mm (' + imp.obsCount + ' قياس)</div>'
+        : '';
       cont.innerHTML += '\
         <div class="imp-card">\
           <div class="imp-card-head">\
-            <div class="imp-tag">ArUco #' + imp.aruco_id + '</div>\
+            <div class="imp-tag">ArUco #' + imp.aruco_id + refBadge + '</div>\
             <div class="imp-q">' + imp.quality + '%</div>\
           </div>\
           <div class="coords">\
@@ -752,7 +796,7 @@ function showResults(implants) {
             <div class="coord"><span>Rx (°)</span><span>' + imp.angle_x + '</span></div>\
             <div class="coord"><span>Ry (°)</span><span>' + imp.angle_y + '</span></div>\
             <div class="coord"><span>Rz (°)</span><span>' + imp.angle_z + '</span></div>\
-          </div>\
+          </div>' + stdBadge + '\
         </div>';
     });
   }
