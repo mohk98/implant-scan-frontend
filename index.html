@@ -352,11 +352,12 @@ function loadScan(buffer, name){
     modelRadius = geo.boundingSphere.radius;
     controls.frame(new THREE.Vector3(0,0,0), modelRadius);
 
-    // store a downsampled scan point cloud for ICP queries + backend payload
+    // store a downsampled scan point cloud for local ICP queries
     SCAN_PTS = voxelDownsample(geo.attributes.position.array, 0.5);
-    // downsampled vertex list to send to the backend (points only; backend samples)
+    // denser point list for the backend (finer voxel = more points = reliable RANSAC)
+    const dense = voxelDownsample(geo.attributes.position.array, 0.15);
     SCAN_VERTS = [];
-    for(let i=0;i<SCAN_PTS.length;i+=3) SCAN_VERTS.push([SCAN_PTS[i],SCAN_PTS[i+1],SCAN_PTS[i+2]]);
+    for(let i=0;i<dense.length;i+=3) SCAN_VERTS.push([dense[i],dense[i+1],dense[i+2]]);
 
     document.getElementById('emptyState').style.display='none';
     document.getElementById('vpBadge').style.display='flex';
@@ -579,10 +580,11 @@ for(const k in MARKER_TEMPLATES){
   weighted.set(base,0);
   for(let b=0;b<BOOST;b++) weighted.set(top, base.length + b*top.length);
   TEMPLATE_PTS[k] = weighted;
-  // full template vertices for backend (deduplicated points)
-  const tv=[]; const tvox=voxelDownsample(arr,0.3);
-  for(let i=0;i<tvox.length;i+=3) tv.push([tvox[i],tvox[i+1],tvox[i+2]]);
-  TEMPLATE_VERTS[k]=tv;
+  // template as vertices+faces (backend needs normals to drop hidden faces)
+  const tvArr=[], tfArr=[];
+  for(let i=0;i<arr.length;i+=3) tvArr.push([arr[i],arr[i+1],arr[i+2]]);
+  for(let i=0;i<tvArr.length;i+=3) tfArr.push([i,i+1,i+2]);
+  TEMPLATE_VERTS[k]={vertices:tvArr, faces:tfArr};
 }
 let currentType = 'normal';
 const placed = []; // {id,type,mesh,point}
@@ -632,12 +634,17 @@ function placeMarker(point, normal){
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         scan:{vertices:SCAN_VERTS},
-        template:{vertices:TEMPLATE_VERTS[type]},
+        template:TEMPLATE_VERTS[type],
         click:[point.x,point.y,point.z],
         marker_len:TYPES[type].len
       })
     }).then(r=>r.json()).then(res=>{
-      if(!res.ok){ toast('فشلت المطابقة: '+(res.error||'')); return; }
+      if(!res.ok){ toast('فشلت المطابقة — انقر أقرب لمركز الماركر'); rec.failed=true; renderMarkerList(); return; }
+      if(res.reliable===false){
+        toast('مطابقة غير موثوقة (تطابق '+(res.fitness*100).toFixed(0)+'%) — انقر مرة ثانية');
+        rec.failed=true; rec.rms=res.rms; rec.fitness=res.fitness; renderMarkerList();
+        return; // do NOT move the marker to an unreliable pose
+      }
       const T=res.matrix;
       const m=new THREE.Matrix4();
       m.set(T[0][0],T[0][1],T[0][2],T[0][3],
@@ -648,7 +655,7 @@ function placeMarker(point, normal){
       const pos=new THREE.Vector3(), quat=new THREE.Quaternion(), scl=new THREE.Vector3();
       m.decompose(pos,quat,scl);
       rec.point=pos.clone(); rec.euler=new THREE.Euler().setFromQuaternion(quat,'XYZ');
-      rec.rms=res.rms; rec.fitness=res.fitness;
+      rec.rms=res.rms; rec.fitness=res.fitness; rec.failed=false;
       renderMarkerList();
       toast('تمت المطابقة · RMS='+res.rms.toFixed(3)+'mm · تطابق '+(res.fitness*100).toFixed(0)+'%');
     }).catch(err=>{ console.error(err); toast('تعذّر الاتصال بالخادم — تحقق من الرابط'); });
@@ -711,11 +718,15 @@ function renderMarkerList(){
     const deg = v=>(v*180/Math.PI).toFixed(1);
     const rot = p.euler ? `<div class="m-coord">Rx ${deg(p.euler.x)}°&nbsp;&nbsp;Ry ${deg(p.euler.y)}°&nbsp;&nbsp;Rz ${deg(p.euler.z)}°</div>` : '';
     let quality='';
-    if(p.rms!=null){
-      const ok = p.rms<0.15, mid = p.rms<0.35;
+    if(p.failed){
+      quality = `<div class="m-coord" style="color:#E03131;font-weight:600">● مطابقة غير موثوقة — انقر مرة ثانية${p.fitness!=null?' (تطابق '+(p.fitness*100).toFixed(0)+'%)':''}</div>`;
+    } else if(p.rms!=null){
+      const f = p.fitness!=null ? p.fitness : 1;
+      const ok = f>=0.75, mid = f>=0.60;
       const col = ok?'#2F9E44':mid?'#E8A317':'#E03131';
       const lbl = ok?'مطابقة ممتازة':mid?'مطابقة مقبولة':'مطابقة ضعيفة';
-      quality = `<div class="m-coord" style="color:${col};font-weight:600">● ${lbl} · RMS ${p.rms.toFixed(3)} mm</div>`;
+      const fitTxt = p.fitness!=null ? ' · تطابق '+(f*100).toFixed(0)+'%' : '';
+      quality = `<div class="m-coord" style="color:${col};font-weight:600">● ${lbl} · RMS ${p.rms.toFixed(3)}mm${fitTxt}</div>`;
     }
     return `<div class="m-item">
       <span class="m-tag" style="background:${c}"></span>
